@@ -16,6 +16,7 @@ public class DeadlineTask {
     private final EmailService emailService;
 
     @Scheduled(cron = "0 0 9 */3 * ?")
+    
     public void reportExpiringDocuments() {
         List<Document> expiring = documentService.checkExpiringDocuments();
 
