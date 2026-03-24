@@ -11,9 +11,12 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByCreatedBy(UUID userId);
 
-    
-    
     List<Document> findByExpiryDateBeforeAndNotifiedFalse(LocalDate date);
 
     List<Document> findBySpecialFalse();
-}
+
+    List<Document> findByCategory(String category);
+
+    List<Document> findByCategoryAndSpecialFalse(String category);
+
+    }

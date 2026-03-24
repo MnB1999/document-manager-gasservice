@@ -1,19 +1,28 @@
 package com.azienda.documentmanager.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDate; 
+import java.time.LocalDate;
 import java.util.UUID;
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "documents")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Document {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     private String title;
+    private String category;
+
+    @Column(name = "file_url")
+    private String fileUrl;
 
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
