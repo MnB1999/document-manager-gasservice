@@ -11,6 +11,15 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Verifica chi ha emesso il token
+          issuer-uri: ${ISSUER_URI}
+          # Scarica chiavi pubbliche e valida firma del token
+          jwk-set-uri: ${JWK_SET_URI}
+
 
   mail:
     host: smtp.gmail.com
