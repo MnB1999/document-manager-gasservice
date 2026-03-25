@@ -45,7 +45,7 @@ public class DocumentService {
         }
     }
 
-    public Document saveDocument(MultipartFile file, String title, String category, String expiryDate, boolean isSpecial) {
+    public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial) {
         String fileUrl = null;
 
         if (file != null && !file.isEmpty()) {
@@ -55,7 +55,7 @@ public class DocumentService {
         Document doc = new Document();
         doc.setTitle(title);
         doc.setCategory(category);
-        doc.setExpiryDate(LocalDate.parse(expiryDate));
+        doc.setExpiryDate(expiryDate);
         doc.setSpecial(isSpecial);
         doc.setFileUrl(fileUrl); 
 
@@ -89,21 +89,19 @@ public class DocumentService {
         }
     }
     private UUID getCurrentUserId() {
-        
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Utente non autenticato!");
+            throw new RuntimeException("Utente non autenticato");
         }
 
-        
-        
+        String name = authentication.getName();
+
         try {
-            return UUID.fromString(authentication.getName());
+            return UUID.fromString(name);
         } catch (IllegalArgumentException e) {
             
-            
-            return UUID.nameUUIDFromBytes(authentication.getName().getBytes());
+            return UUID.nameUUIDFromBytes(name.getBytes());
         }
     }
 }
