@@ -3,16 +3,14 @@ package com.azienda.documentmanager.service;
 import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +30,7 @@ public class DocumentService {
     public List<Document> getDocumentsForUser(UUID userId) {
         return documentRepository.findByCreatedBy(userId);
     }
+
     public List<Document> checkExpiringDocuments() {
         LocalDate limitDate = LocalDate.now().plusDays(21);
         return documentRepository.findByExpiryDateBeforeAndNotifiedFalse(limitDate);
@@ -87,20 +86,16 @@ public class DocumentService {
             throw new RuntimeException("Errore critico durante l'upload su Supabase: " + e.getMessage());
         }
     }
+
     private UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Utente non autenticato");
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+            // Il "sub" nel JWT di Supabase è l'ID univoco dell'utente
+            String supabaseUuid = jwtAuth.getTokenAttributes().get("sub").toString();
+            return UUID.fromString(supabaseUuid);
         }
 
-        String name = authentication.getName();
-        return UUID.fromString("562bb4ec-a128-4038-9afd-46cbfd32caed");
-        /*try {
-            return UUID.fromString("562bb4ec-a128-4038-9afd-46cbfd32caed");
-        } catch (IllegalArgumentException e) {
-
-            return UUID.nameUUIDFromBytes(name.getBytes());
-        }*/
+        throw new RuntimeException("Utente non autenticato o Token non valido");
     }
 }
