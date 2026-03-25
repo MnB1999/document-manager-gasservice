@@ -16,10 +16,10 @@ public class EmailService {
     public void sendDeadlineAlert(String to, List<Document> expiringDocuments) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);
-        message.setSubject("AVVISO SCADENZE - Gas Service");
+        message.setSubject("AVVISO DI SCADENZA - Documenti Gas Service");
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Gentile ufficio,\n\nI seguenti documenti sono in scadenza entro i prossimi 30 giorni:\n\n");
+        sb.append("Gentile ufficio,\n\nI seguenti documenti o certificazioni sono in scadenza entro i prossimi 21 giorni:\n\n");
 
         for (Document doc : expiringDocuments) {
             sb.append("- ").append(doc.getTitle())

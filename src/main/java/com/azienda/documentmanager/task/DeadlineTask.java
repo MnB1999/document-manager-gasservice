@@ -4,6 +4,7 @@ import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.service.DocumentService;
 import com.azienda.documentmanager.service.EmailService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.util.List;
@@ -11,6 +12,9 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class DeadlineTask {
+
+    @Value("${NOTIFICATION_RECIPIENT}")
+    private String recipientEmail;
 
     private final DocumentService documentService;
     private final EmailService emailService;
@@ -21,8 +25,7 @@ public class DeadlineTask {
         List<Document> expiring = documentService.checkExpiringDocuments();
 
         if (!expiring.isEmpty()) {
-            String destinatario = "${NOTIFICATION_RECIPIENT}";
-            emailService.sendDeadlineAlert(destinatario, expiring);
+            emailService.sendDeadlineAlert(recipientEmail, expiring);
         }
     }
 }

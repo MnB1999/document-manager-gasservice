@@ -18,3 +18,7 @@ spring:
           auth: true
           starttls:
             enable: true
+
+app:
+  notifications:
+    recipient-email: ${NOTIFICATION_RECIPIENT}
