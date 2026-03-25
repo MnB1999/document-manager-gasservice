@@ -22,3 +22,7 @@ spring:
 app:
   notifications:
     recipient-email: ${NOTIFICATION_RECIPIENT}
+
+supabase:
+  url: ${SUPABASE_URL}
+  key: ${SUPABASE_KEY}
