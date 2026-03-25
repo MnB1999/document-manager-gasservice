@@ -20,6 +20,7 @@ public class Document {
 
     private String title;
     private String category;
+    private String type;
 
     @Column(name = "file_url")
     private String fileUrl;

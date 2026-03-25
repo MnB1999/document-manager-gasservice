@@ -57,9 +57,8 @@ public class DocumentService {
         doc.setCategory(category);
         doc.setExpiryDate(expiryDate);
         doc.setSpecial(isSpecial);
-        doc.setFileUrl(fileUrl); 
-
-        
+        doc.setFileUrl(fileUrl);
+        doc.setType("FILE");
         doc.setCreatedBy(getCurrentUserId());
 
         return documentRepository.save(doc);
@@ -68,7 +67,7 @@ public class DocumentService {
     private String uploadFileToSupabase(MultipartFile file) {
         
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        String uploadUrl = supabaseUrl + "/storage/v1/object/gas-service-docs/" + fileName;
+        String uploadUrl = supabaseUrl + "/storage/v1/object/aziendale_docs/" + fileName;
 
         RestClient restClient = RestClient.create();
 
@@ -96,12 +95,12 @@ public class DocumentService {
         }
 
         String name = authentication.getName();
-
-        try {
-            return UUID.fromString(name);
+        return UUID.fromString("562bb4ec-a128-4038-9afd-46cbfd32caed");
+        /*try {
+            return UUID.fromString("562bb4ec-a128-4038-9afd-46cbfd32caed");
         } catch (IllegalArgumentException e) {
-            
+
             return UUID.nameUUIDFromBytes(name.getBytes());
-        }
+        }*/
     }
 }

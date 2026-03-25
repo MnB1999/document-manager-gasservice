@@ -6,6 +6,11 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 
   mail:
     host: smtp.gmail.com
@@ -26,3 +31,4 @@ app:
 supabase:
   url: ${SUPABASE_URL}
   key: ${SUPABASE_KEY}
+
