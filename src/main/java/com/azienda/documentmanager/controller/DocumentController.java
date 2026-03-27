@@ -24,17 +24,14 @@ public class DocumentController {
         return documentService.getDocumentsForUser(userId);
     }
 
-   
-
     @GetMapping("/expiring")
     public List<Document> getExpiring() {
         return documentService.checkExpiringDocuments();
     }
 
-    
-    @GetMapping
-    public List<Document> getAll(@RequestParam(defaultValue = "USER") String role) {
-        return documentService.getAllAllowedDocuments(role);
+    @GetMapping("/all")
+    public List<Document> getAll() {
+        return documentService.getAllVisibleDocuments();
     }
 
     @PostMapping("/upload")

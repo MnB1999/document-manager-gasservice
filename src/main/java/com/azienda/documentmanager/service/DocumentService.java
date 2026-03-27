@@ -36,11 +36,16 @@ public class DocumentService {
         return documentRepository.findByExpiryDateBeforeAndNotifiedFalse(limitDate);
     }
 
-    public List<Document> getAllAllowedDocuments(String userRole) {
-        if ("ADMIN".equals(userRole)) {
+    public List<Document> getAllVisibleDocuments() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
             return documentRepository.findAll();
         } else {
-            return documentRepository.findBySpecialFalse();
+            return documentRepository.findByIsSpecialFalse();
         }
     }
 

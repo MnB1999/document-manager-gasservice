@@ -19,4 +19,5 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByCategoryAndSpecialFalse(String category);
 
-    }
+    List<Document> findByIsSpecialFalse();
+}
