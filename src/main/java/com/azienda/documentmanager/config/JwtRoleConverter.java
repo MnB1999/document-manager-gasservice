@@ -14,7 +14,7 @@ import java.util.Map;
 
 @Component
 public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationToken> {
-    // Guarda dove supabase inserisce il ruolo e lo converte in maniera leggibile per springboot
+    // This looks where supabase "stores" the user's role and makes it intelligible for springboot
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();

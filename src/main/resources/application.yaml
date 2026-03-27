@@ -15,9 +15,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # Verifica chi ha emesso il token
           issuer-uri: ${ISSUER_URI}
-          # Scarica chiavi pubbliche e valida firma del token
           jwk-set-uri: ${JWK_SET_URI}
 
 
@@ -40,4 +38,10 @@ app:
 supabase:
   url: ${SUPABASE_URL}
   key: ${SUPABASE_KEY}
+  jwt:
+    secret: ${JWT_SECRET}
+
+logging:
+  level:
+    org.springframework.security: DEBUG
 

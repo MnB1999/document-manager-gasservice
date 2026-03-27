@@ -30,7 +30,6 @@ public class EmailService {
 
         message.setText(sb.toString());
         mailSender.send(message);
-
-        System.out.println("Email inviata con successo a: " + to);
+        
     }
 }

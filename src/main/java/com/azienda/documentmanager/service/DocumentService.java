@@ -83,7 +83,7 @@ public class DocumentService {
             
             return supabaseUrl + "/storage/v1/object/public/gas-service-docs/" + fileName;
         } catch (Exception e) {
-            throw new RuntimeException("Errore critico durante l'upload su Supabase: " + e.getMessage());
+            throw new RuntimeException("Errore durante l'upload: " + e.getMessage());
         }
     }
 
@@ -91,7 +91,7 @@ public class DocumentService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            // Il "sub" nel JWT di Supabase è l'ID univoco dell'utente
+            // On supabase "sub" is the unique user ID
             String supabaseUuid = jwtAuth.getTokenAttributes().get("sub").toString();
             return UUID.fromString(supabaseUuid);
         }
