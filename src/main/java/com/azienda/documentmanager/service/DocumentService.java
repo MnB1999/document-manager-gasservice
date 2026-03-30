@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,12 +32,35 @@ public class DocumentService {
         return documentRepository.findByCreatedBy(userId);
     }
 
-    public List<Document> checkExpiringDocuments() {
-        LocalDate limitDate = LocalDate.now().plusDays(21);
-        return documentRepository.findByExpiryDateBeforeAndNotifiedFalse(limitDate);
+    public List<Document> checkAndFilterExpiringDocuments() {
+        LocalDate today = LocalDate.now();
+
+        List<Document> expiringDocs = documentRepository.findByExpiryDateBefore(today.plusDays(21));
+        List<Document> toNotify = new ArrayList<>();
+
+        for (Document doc : expiringDocs) {
+            if (!doc.isNotified()) {
+                toNotify.add(doc);
+                doc.setNotified(true);
+                doc.setLastNotifiedAt(today);
+            } else if (doc.getLastNotifiedAt() != null) {
+                long daysSinceLastNotification = java.time.temporal.ChronoUnit.DAYS.between(doc.getLastNotifiedAt(), today);
+
+                if (daysSinceLastNotification >= 11) {
+                    toNotify.add(doc);
+                    doc.setLastNotifiedAt(today);
+                }
+            }
+        }
+
+        if (!expiringDocs.isEmpty()) {
+            documentRepository.saveAll(expiringDocs);
+        }
+
+        return toNotify;
     }
 
-    public List<Document> getAllVisibleDocuments() {
+    public List<Document> getAllAllowedDocuments() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         boolean isAdmin = auth.getAuthorities().stream()
@@ -45,7 +69,7 @@ public class DocumentService {
         if (isAdmin) {
             return documentRepository.findAll();
         } else {
-            return documentRepository.findByIsSpecialFalse();
+            return documentRepository.findBySpecialFalse();
         }
     }
 

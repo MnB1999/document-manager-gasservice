@@ -11,7 +11,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByCreatedBy(UUID userId);
 
-    List<Document> findByExpiryDateBeforeAndNotifiedFalse(LocalDate date);
+    List<Document> findByExpiryDateBefore(LocalDate date);
 
     List<Document> findBySpecialFalse();
 
@@ -19,5 +19,4 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByCategoryAndSpecialFalse(String category);
 
-    List<Document> findByIsSpecialFalse();
 }

@@ -34,6 +34,9 @@ public class Document {
     @Column(name = "is_notified")
     private boolean notified = false;
 
+    @Column(name = "last_notified_at")
+    private LocalDate lastNotifiedAt;
+
     @Column(name = "is_special")
     private boolean special = false;
 }

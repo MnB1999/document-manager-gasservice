@@ -26,12 +26,12 @@ public class DocumentController {
 
     @GetMapping("/expiring")
     public List<Document> getExpiring() {
-        return documentService.checkExpiringDocuments();
+        return documentService.checkAndFilterExpiringDocuments();
     }
 
     @GetMapping("/all")
     public List<Document> getAll() {
-        return documentService.getAllVisibleDocuments();
+        return documentService.getAllAllowedDocuments();
     }
 
     @PostMapping("/upload")

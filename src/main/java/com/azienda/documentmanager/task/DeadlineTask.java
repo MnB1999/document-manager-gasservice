@@ -19,10 +19,10 @@ public class DeadlineTask {
     private final DocumentService documentService;
     private final EmailService emailService;
 
-    @Scheduled(cron = "0 0 9 */3 * ?")
+    @Scheduled(cron = "0 0 9 */1 * ?")
     
     public void reportExpiringDocuments() {
-        List<Document> expiring = documentService.checkExpiringDocuments();
+        List<Document> expiring = documentService.checkAndFilterExpiringDocuments();
 
         if (!expiring.isEmpty()) {
             emailService.sendDeadlineAlert(recipientEmail, expiring);
