@@ -1,7 +1,9 @@
 package com.azienda.documentmanager.service;
 
 import com.azienda.documentmanager.model.Document;
+import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.repository.DocumentRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -127,4 +130,41 @@ public class DocumentService {
 
         throw new RuntimeException("Utente non autenticato o Token non valido");
     }
+
+    @Transactional // Rolls back if upload of new document fails
+    public Document renewDocument(UUID documentId, MultipartFile newFile, LocalDate newExpiryDate) {
+        Optional<Document> docOpt = documentRepository.findById(documentId);
+
+        if (docOpt.isEmpty()) {
+            throw new RuntimeException("Documento non trovato con ID: " + documentId);
+        }
+
+        Document existingDoc = docOpt.get();
+
+        if (existingDoc.getFileUrl() != null) {
+            DocumentVersion oldVersion = new DocumentVersion();
+            oldVersion.setDocument(existingDoc);
+            oldVersion.setFileUrl(existingDoc.getFileUrl());
+            oldVersion.setExpiryDate(existingDoc.getExpiryDate());
+            oldVersion.setArchivedAt(LocalDate.now());
+
+            existingDoc.getHistory().add(oldVersion);
+        }
+
+        String newFileUrl = null;
+        if (newFile != null && !newFile.isEmpty()) {
+            newFileUrl = uploadFileToSupabase(newFile);
+            existingDoc.setFileUrl(newFileUrl);
+        }
+
+        existingDoc.setExpiryDate(newExpiryDate);
+        existingDoc.setNotified(false);
+        existingDoc.setLastNotifiedAt(null);
+        existingDoc.setType("FILE");
+
+        return documentRepository.save(existingDoc);
+    }
+
+    public Optional<Document> getDocumentById(UUID id) { return documentRepository.findById(id); }
+
 }

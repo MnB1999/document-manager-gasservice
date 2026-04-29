@@ -1,6 +1,7 @@
 package com.azienda.documentmanager.controller;
 
 import com.azienda.documentmanager.model.Document;
+import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -10,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -46,4 +48,22 @@ public class DocumentController {
 
     }
 
+    @PutMapping("/renew/{id}")
+    public ResponseEntity<Document> renewDocument(
+            @PathVariable UUID id,
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newExpiryDate) {
+
+        Document renewedDoc = documentService.renewDocument(id, file, newExpiryDate);
+        return ResponseEntity.ok(renewedDoc);
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<DocumentVersion>> getDocumentHistory(@PathVariable UUID id) {
+        Optional<Document> docOpt = documentService.getDocumentById(id);
+        if (docOpt.isPresent()) {
+            return ResponseEntity.ok(docOpt.get().getHistory());
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

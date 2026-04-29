@@ -1,7 +1,10 @@
 package com.azienda.documentmanager.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -39,4 +42,8 @@ public class Document {
 
     @Column(name = "is_special")
     private boolean special = false;
+
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // This makes the GET /all call lighter
+    private List<DocumentVersion> history = new ArrayList<>();
 }
