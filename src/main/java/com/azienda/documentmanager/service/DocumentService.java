@@ -6,6 +6,7 @@ import com.azienda.documentmanager.repository.DocumentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -14,10 +15,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -166,5 +164,52 @@ public class DocumentService {
     }
 
     public Optional<Document> getDocumentById(UUID id) { return documentRepository.findById(id); }
+
+    private void deleteFileFromSupabase(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) return;
+
+        try {
+            String bucketName = "aziendale_docs";
+            String[] parts = fileUrl.split("/");
+            String fileName = parts[parts.length - 1];
+
+            String deleteUrl = supabaseUrl + "/storage/v1/object/" + bucketName;
+
+            RestClient restClient = RestClient.create();
+
+           // Json body with list of files to delete
+            Map<String, Object> body = Map.of("prefixes", List.of(fileName));
+
+            restClient.method(HttpMethod.DELETE)
+                    .uri(deleteUrl)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .header("apikey", supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+
+        } catch (Exception e) {
+            System.err.println("Impossibile eliminare il file dal database: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void deleteDocumentCompletely(UUID documentId) {
+        Document doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new RuntimeException("Documento non trovato"));
+
+        // Gets old and current URLs for the files we want to delete
+        List<String> urlsToDelete = new ArrayList<>();
+        if (doc.getFileUrl() != null) urlsToDelete.add(doc.getFileUrl());
+
+        doc.getHistory().forEach(version -> {
+            if (version.getFileUrl() != null) urlsToDelete.add(version.getFileUrl());
+        });
+
+        urlsToDelete.forEach(this::deleteFileFromSupabase);
+
+        documentRepository.delete(doc);
+    }
 
 }

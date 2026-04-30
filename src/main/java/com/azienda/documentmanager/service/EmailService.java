@@ -19,7 +19,7 @@ public class EmailService {
         message.setSubject("AVVISO DI SCADENZA - Documenti Gas Service");
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Gentile ufficio,\n\nI seguenti documenti o certificazioni sono in scadenza entro i prossimi 21 giorni:\n\n");
+        sb.append("Gentile ufficio,\n\nI seguenti documenti o certificazioni sono in scadenza entro i prossimi 21 giorni o sono già scaduti:\n\n");
 
         for (Document doc : expiringDocuments) {
             sb.append("- ").append(doc.getTitle())

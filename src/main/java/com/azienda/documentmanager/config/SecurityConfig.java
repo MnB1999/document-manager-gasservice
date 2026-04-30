@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -32,7 +33,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/documents/upload").hasRole("ADMIN")
+                        .requestMatchers("/api/documents/upload").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/documents/**").hasRole("ADMIN")
                         .requestMatchers("/api/documents/all").authenticated()
                         .anyRequest().authenticated()
                 )
@@ -74,7 +76,7 @@ public class SecurityConfig {
 
 
 
-
+    // Used this snippet to test stuff with JSWTs and http request, do not need it now
    /* @Bean
     public InMemoryUserDetailsManager userDetailsService() {
         UserDetails user = User.withDefaultPasswordEncoder()

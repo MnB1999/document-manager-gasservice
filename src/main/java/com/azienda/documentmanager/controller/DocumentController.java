@@ -66,4 +66,10 @@ public class DocumentController {
         }
         return ResponseEntity.notFound().build();
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDocument(@PathVariable UUID id) {
+        documentService.deleteDocumentCompletely(id);
+        return ResponseEntity.noContent().build();
+    }
 }
