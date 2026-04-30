@@ -1,5 +1,6 @@
 package com.azienda.documentmanager.service;
 
+import com.azienda.documentmanager.exception.ResourceNotFoundException;
 import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.repository.DocumentRepository;
@@ -7,6 +8,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -212,4 +214,27 @@ public class DocumentService {
         documentRepository.delete(doc);
     }
 
+    public List<DocumentVersion> getDocumentHistory(UUID documentId) {
+        Document doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Documento non trovato con ID: " + documentId));
+
+        if (doc.isSpecial()) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!isAdmin) {
+                throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
+            }
+        }
+
+        List<DocumentVersion> history = doc.getHistory();
+
+        history.sort((v1, v2) -> {
+            if (v1.getArchivedAt() == null || v2.getArchivedAt() == null) return 0;
+            return v2.getArchivedAt().compareTo(v1.getArchivedAt());
+        });
+
+        return history;
+    }
 }

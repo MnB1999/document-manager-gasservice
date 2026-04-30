@@ -58,18 +58,15 @@ public class DocumentController {
         return ResponseEntity.ok(renewedDoc);
     }
 
-    @GetMapping("/{id}/history")
-    public ResponseEntity<List<DocumentVersion>> getDocumentHistory(@PathVariable UUID id) {
-        Optional<Document> docOpt = documentService.getDocumentById(id);
-        if (docOpt.isPresent()) {
-            return ResponseEntity.ok(docOpt.get().getHistory());
-        }
-        return ResponseEntity.notFound().build();
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDocument(@PathVariable UUID id) {
         documentService.deleteDocumentCompletely(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<DocumentVersion>> getHistory(@PathVariable UUID id) {
+        List<DocumentVersion> history = documentService.getDocumentHistory(id);
+        return ResponseEntity.ok(history);
     }
 }

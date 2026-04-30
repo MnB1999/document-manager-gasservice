@@ -36,6 +36,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/documents/upload").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/documents/**").hasRole("ADMIN")
                         .requestMatchers("/api/documents/all").authenticated()
+                        .requestMatchers("/api/documents").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
