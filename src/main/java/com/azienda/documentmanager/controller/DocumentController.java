@@ -21,6 +21,19 @@ public class DocumentController {
 
     private final DocumentService documentService;
 
+    @PostMapping("/upload")
+    public ResponseEntity<Document> upload(@RequestParam(value = "file", required = false) MultipartFile file, //Non deve essere per forza un file in quanto necessitiamo di dover inserire anche dei promemoria testuali
+                                           @RequestParam("title") String title,
+                                           @RequestParam("category") String category,
+                                           @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
+                                           @RequestParam("isSpecial") boolean isSpecial) {
+
+        Document savedDoc = documentService.saveDocument(file, title, category, expiryDate, isSpecial);
+        return ResponseEntity.ok(savedDoc);
+
+    }
+
+
     @GetMapping("/user/{userId}")
     public List<Document> getUserDocuments(@PathVariable UUID userId) {
         return documentService.getDocumentsForUser(userId);
@@ -36,16 +49,10 @@ public class DocumentController {
         return documentService.getAllAllowedDocuments();
     }
 
-    @PostMapping("/upload")
-    public ResponseEntity<Document> upload(@RequestParam(value = "file", required = false) MultipartFile file, //Non deve essere per forza un file in quanto necessitiamo di dover inserire anche dei promemoria testuali
-                                           @RequestParam("title") String title,
-                                           @RequestParam("category") String category,
-                                           @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
-                                           @RequestParam("isSpecial") boolean isSpecial) {
-
-        Document savedDoc = documentService.saveDocument(file, title, category, expiryDate, isSpecial);
-        return ResponseEntity.ok(savedDoc);
-
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<DocumentVersion>> getHistory(@PathVariable UUID id) {
+        List<DocumentVersion> history = documentService.getDocumentHistory(id);
+        return ResponseEntity.ok(history);
     }
 
     @PutMapping("/renew/{id}")
@@ -64,9 +71,4 @@ public class DocumentController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}/history")
-    public ResponseEntity<List<DocumentVersion>> getHistory(@PathVariable UUID id) {
-        List<DocumentVersion> history = documentService.getDocumentHistory(id);
-        return ResponseEntity.ok(history);
-    }
 }

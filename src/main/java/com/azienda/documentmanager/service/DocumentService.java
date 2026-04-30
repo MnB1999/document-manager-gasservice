@@ -229,12 +229,14 @@ public class DocumentService {
         }
 
         List<DocumentVersion> history = doc.getHistory();
-
         history.sort((v1, v2) -> {
             if (v1.getArchivedAt() == null || v2.getArchivedAt() == null) return 0;
             return v2.getArchivedAt().compareTo(v1.getArchivedAt());
         });
-
         return history;
+
+        /* Could also write it like this, which I think is better but, at least to me, less readable
+         history.sort(Comparator.comparing(DocumentVersion::getArchivedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+         */
     }
 }
