@@ -22,7 +22,7 @@ public class DocumentController {
     private final DocumentService documentService;
 
     @PostMapping("/upload")
-    public ResponseEntity<Document> upload(@RequestParam(value = "file", required = false) MultipartFile file, //Non deve essere per forza un file in quanto necessitiamo di dover inserire anche dei promemoria testuali
+    public ResponseEntity<Document> upload(@RequestParam(value = "file", required = false) MultipartFile file, // Sometimes we need to add simple textual reminders, not complete files
                                            @RequestParam("title") String title,
                                            @RequestParam("category") String category,
                                            @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
