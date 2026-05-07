@@ -114,7 +114,7 @@ public class DocumentService {
                     .toBodilessEntity();
 
             
-            return supabaseUrl + "/storage/v1/object/public/gas-service-docs/" + fileName;
+            return supabaseUrl + "/storage/v1/object/public/aziendale_docs/" + fileName;
         } catch (Exception e) {
             throw new StorageException("Impossibile caricare il file su Supabase: " + e.getMessage());
         }
