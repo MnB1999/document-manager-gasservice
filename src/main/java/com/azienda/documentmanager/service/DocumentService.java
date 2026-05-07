@@ -30,6 +30,11 @@ public class DocumentService {
     @Value("${supabase.key}")
     private String supabaseKey;
 
+    private boolean isAdmin() {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
     private final DocumentRepository documentRepository;
 
     public List<Document> getDocumentsForUser(UUID userId) {
@@ -78,11 +83,12 @@ public class DocumentService {
     }
 
     public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial) {
-        String fileUrl = null;
 
-        if (file != null && !file.isEmpty()) {
-            fileUrl = uploadFileToSupabase(file);
+        if (isSpecial && !isAdmin()) {
+            throw new AccessDeniedException("Operazione negata: solo gli amministratori possono caricare documenti speciali.");
         }
+
+        String fileUrl = (file != null && !file.isEmpty()) ? uploadFileToSupabase(file) : null;
 
         Document doc = new Document();
         doc.setTitle(title);
@@ -134,13 +140,17 @@ public class DocumentService {
 
     @Transactional // Rolls back if upload of new document fails
     public Document renewDocument(UUID documentId, MultipartFile newFile, LocalDate newExpiryDate) {
-        Optional<Document> docOpt = documentRepository.findById(documentId);
+        Optional<Document> doc = documentRepository.findById(documentId);
 
-        if (docOpt.isEmpty()) {
-            throw new RuntimeException("Documento non trovato con ID: " + documentId);
+        if (doc.isEmpty()) {
+            throw new ResourceNotFoundException("Documento non trovato con ID: " + documentId);
         }
 
-        Document existingDoc = docOpt.get();
+        Document existingDoc = doc.get();
+
+        if (existingDoc.isSpecial() && !isAdmin()) {
+            throw new AccessDeniedException("Operazione negata: solo gli amministratori possono modificare documenti speciali.");
+        }
 
         if (existingDoc.getFileUrl() != null) {
             DocumentVersion oldVersion = new DocumentVersion();
@@ -148,7 +158,6 @@ public class DocumentService {
             oldVersion.setFileUrl(existingDoc.getFileUrl());
             oldVersion.setExpiryDate(existingDoc.getExpiryDate());
             oldVersion.setArchivedAt(LocalDate.now());
-
             existingDoc.getHistory().add(oldVersion);
         }
 
