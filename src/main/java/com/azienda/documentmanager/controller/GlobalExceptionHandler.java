@@ -1,6 +1,7 @@
 package com.azienda.documentmanager.controller;
 
 import com.azienda.documentmanager.exception.ResourceNotFoundException;
+import com.azienda.documentmanager.exception.StorageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,49 +15,39 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<String> handleNotFound(ResourceNotFoundException exc) {
-        // This method intercepts the exception and builds the 404 response, the app uses it especially for handling
-        // cases where users are trying to look for a document that does not exist
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(exc.getMessage());
+    public ResponseEntity<ErrorDetails> handleNotFound(ResourceNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, "Risorsa non trovata", ex.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<String> handleAccessDenied(AccessDeniedException exc) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(exc.getMessage());
+    public ResponseEntity<ErrorDetails> handleAccessDenied(AccessDeniedException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Accesso negato", "Non hai i permessi per eseguire questa operazione.");
     }
 
-    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-    public ResponseEntity<ErrorDetails> handleMaxSizeException(MaxUploadSizeExceededException exc) {
-        ErrorDetails error = new ErrorDetails(
-                LocalDateTime.now(),
-                HttpStatus.PAYLOAD_TOO_LARGE.value(),
-                "File troppo grande",
-                "Il file supera il limite massimo consentito."
-        );
-        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorDetails> handleFileTooLarge(MaxUploadSizeExceededException ex) {
+        return buildResponse(HttpStatus.PAYLOAD_TOO_LARGE, "File troppo grande", "La dimensione del file supera il limite massimo.");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorDetails> handleIllegalArgument(IllegalArgumentException exc) {
-        ErrorDetails error = new ErrorDetails(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Richiesta non valida",
-                exc.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<ErrorDetails> handleBadRequest(IllegalArgumentException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Dati non validi", ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetails> handleGlobalException(Exception ex) {
-        ErrorDetails error = new ErrorDetails(
-                LocalDateTime.now(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Errore Interno",
-                "Si è verificato un errore inaspettato. Riprova più tardi."
-        );
         // Logs the error on console for debugging (Let's hope I'll never need this :) )
         ex.printStackTrace();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Errore Interno", "Si è verificato un errore inaspettato. Riprova più tardi.");
+    }
+
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorDetails> handleStorageError(StorageException ex) {
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Errore Storage", ex.getMessage());
+    }
+
+    private ResponseEntity<ErrorDetails> buildResponse(HttpStatus status, String errorType, String message) {
+        ErrorDetails error = new ErrorDetails(LocalDateTime.now(), status.value(), errorType, message);
+        return new ResponseEntity<>(error, status);
     }
 }

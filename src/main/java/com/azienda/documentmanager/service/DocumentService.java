@@ -1,6 +1,7 @@
 package com.azienda.documentmanager.service;
 
 import com.azienda.documentmanager.exception.ResourceNotFoundException;
+import com.azienda.documentmanager.exception.StorageException;
 import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.repository.DocumentRepository;
@@ -115,7 +116,7 @@ public class DocumentService {
             
             return supabaseUrl + "/storage/v1/object/public/gas-service-docs/" + fileName;
         } catch (Exception e) {
-            throw new RuntimeException("Errore durante l'upload: " + e.getMessage());
+            throw new StorageException("Impossibile caricare il file su Supabase: " + e.getMessage());
         }
     }
 
@@ -238,5 +239,10 @@ public class DocumentService {
         /* Could also write it like this, which I think is better but, at least to me, less readable
          history.sort(Comparator.comparing(DocumentVersion::getArchivedAt, Comparator.nullsLast(Comparator.reverseOrder())));
          */
+    }
+
+    public Document getDocument(UUID id) {
+        return documentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
     }
 }
