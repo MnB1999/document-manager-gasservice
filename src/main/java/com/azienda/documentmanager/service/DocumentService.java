@@ -175,8 +175,6 @@ public class DocumentService {
         return documentRepository.save(existingDoc);
     }
 
-    public Optional<Document> getDocumentById(UUID id) { return documentRepository.findById(id); }
-
     private void deleteFileFromSupabase(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) return;
 
@@ -250,8 +248,19 @@ public class DocumentService {
          */
     }
 
-    public Document getDocument(UUID id) {
-        return documentRepository.findById(id)
+    public Document getDocumentByID(UUID id) {
+        Document doc = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
+
+        if (doc.isSpecial()) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!isAdmin) {
+                throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
+            }
+        }
+        return doc;
     }
 }

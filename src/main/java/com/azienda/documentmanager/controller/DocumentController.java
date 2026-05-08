@@ -55,6 +55,12 @@ public class DocumentController {
         return ResponseEntity.ok(history);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Document> getDocumentById(@PathVariable UUID id) {
+        Document doc = documentService.getDocumentByID(id);
+        return ResponseEntity.ok(doc);
+    }
+
     @PutMapping("/renew/{id}")
     public ResponseEntity<Document> renewDocument(
             @PathVariable UUID id,

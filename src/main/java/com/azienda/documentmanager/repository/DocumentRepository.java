@@ -18,10 +18,6 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findBySpecialFalse();
 
-    List<Document> findByCategory(String category);
-
-    List<Document> findByCategoryAndSpecialFalse(String category);
-
     // Dynamic filter searching for the users, including partial text recognition
     @Query("SELECT d FROM Document d WHERE " +
             "(:title IS NULL OR LOWER(d.title) LIKE LOWER(CONCAT('%', :title, '%'))) AND " +
