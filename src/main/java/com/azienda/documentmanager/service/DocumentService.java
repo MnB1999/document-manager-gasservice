@@ -3,6 +3,7 @@ package com.azienda.documentmanager.service;
 import com.azienda.documentmanager.exception.ResourceNotFoundException;
 import com.azienda.documentmanager.exception.StorageException;
 import com.azienda.documentmanager.model.Document;
+import com.azienda.documentmanager.model.DocumentType;
 import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.repository.DocumentRepository;
 import jakarta.transaction.Transactional;
@@ -96,7 +97,7 @@ public class DocumentService {
         doc.setExpiryDate(expiryDate);
         doc.setSpecial(isSpecial);
         doc.setFileUrl(fileUrl);
-        doc.setType("FILE");
+        doc.setType(file != null && !file.isEmpty() ? DocumentType.FILE : DocumentType.TEXT_REMINDER);
         doc.setCreatedBy(getCurrentUserId());
 
         return documentRepository.save(doc);
@@ -170,7 +171,10 @@ public class DocumentService {
         existingDoc.setExpiryDate(newExpiryDate);
         existingDoc.setNotified(false);
         existingDoc.setLastNotifiedAt(null);
-        existingDoc.setType("FILE");
+        if (newFile != null && !newFile.isEmpty()) {
+            existingDoc.setFileUrl(uploadFileToSupabase(newFile)); // if this throws, nothing below runs
+            existingDoc.setType(DocumentType.FILE);
+        }
 
         return documentRepository.save(existingDoc);
     }
@@ -207,7 +211,7 @@ public class DocumentService {
     @Transactional
     public void deleteDocumentCompletely(UUID documentId) {
         Document doc = documentRepository.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Documento non trovato"));
+                .orElseThrow(() -> new ResourceNotFoundException("Impossibile eliminare: documento non trovato con ID " + documentId));
 
         // Gets old and current URLs for the files we want to delete
         List<String> urlsToDelete = new ArrayList<>();

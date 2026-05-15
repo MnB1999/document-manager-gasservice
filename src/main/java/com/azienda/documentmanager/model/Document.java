@@ -23,7 +23,10 @@ public class Document {
 
     private String title;
     private String category;
-    private String type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type")
+    private DocumentType type;
 
     @Column(name = "file_url")
     private String fileUrl;
