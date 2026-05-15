@@ -4,6 +4,7 @@ import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.service.DocumentService;
 import com.azienda.documentmanager.service.EmailService;
 import lombok.RequiredArgsConstructor;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,7 @@ public class DeadlineTask {
     private final EmailService emailService;
 
     @Scheduled(cron = "0 0 9 * * ?")
-    
+    @SchedulerLock(name = "reportExpiringDocuments", lockAtLeastFor = "5m", lockAtMostFor = "14m")
     public void reportExpiringDocuments() {
         List<Document> expiring = documentService.processAndNotifyExpiringDocuments();
 

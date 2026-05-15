@@ -10,10 +10,12 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "documents")
 @Data
+@SQLRestriction("deleted = false")
 @NoArgsConstructor
 @AllArgsConstructor
 public class Document {
@@ -45,6 +47,12 @@ public class Document {
 
     @Column(name = "is_special")
     private boolean special = false;
+
+    @Column(name = "deleted")
+    private boolean deleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDate deletedAt;
 
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore // This makes the GET /all call lighter

@@ -5,6 +5,7 @@ import com.azienda.documentmanager.exception.StorageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -49,5 +50,10 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ErrorDetails> buildResponse(HttpStatus status, String errorType, String message) {
         ErrorDetails error = new ErrorDetails(LocalDateTime.now(), status.value(), errorType, message);
         return new ResponseEntity<>(error, status);
+    }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<ErrorDetails> handleAuthError(AuthenticationCredentialsNotFoundException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Non Autenticato", ex.getMessage());
     }
 }

@@ -4,6 +4,7 @@ import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.service.DocumentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,15 +64,23 @@ public class DocumentController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Document>> searchDocuments(
+    public ResponseEntity<Page<Document>> searchDocuments(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
 
-        List<Document> results = documentService.searchAllowedDocuments(title, category, startDate, endDate);
-
+        Page<Document> results = documentService.searchAllowedDocuments(title, category, startDate, endDate, page, size);
         return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<Map<String, String>> getDownloadUrl(@PathVariable UUID id) {
+        Document doc = documentService.getDocumentByID(id);
+        String signedUrl = documentService.generateSignedUrl(doc.getFileUrl());
+        return ResponseEntity.ok(Map.of("url", signedUrl));
     }
 
     @PutMapping("/renew/{id}")
@@ -85,7 +95,7 @@ public class DocumentController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDocument(@PathVariable UUID id) {
-        documentService.deleteDocumentCompletely(id);
+        documentService.logicalDeleteDocument(id);
         return ResponseEntity.noContent().build();
     }
 

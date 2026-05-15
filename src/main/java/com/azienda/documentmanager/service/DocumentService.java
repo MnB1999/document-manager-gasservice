@@ -9,16 +9,25 @@ import com.azienda.documentmanager.repository.DocumentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -34,6 +43,9 @@ public class DocumentService {
     @Value("${supabase.key}")
     private String supabaseKey;
 
+    @Value("${app.storage.bucket}")
+    private String bucketName;
+
     private boolean isAdmin() {
         return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -42,6 +54,24 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
 
     private final RestClient restClient;
+
+    private void validateFileType(MultipartFile file) {
+        try {
+            Tika tika = new Tika();
+            String detectedMimeType = tika.detect(file.getInputStream());
+            List<String> allowedTypes = List.of(
+                    "application/pdf", "image/jpeg", "image/png",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            );
+
+            if (!allowedTypes.contains(detectedMimeType)) {
+                throw new IllegalArgumentException("Tipo file non consentito o malevolo: " + detectedMimeType);
+            }
+        } catch (Exception e) {
+            throw new StorageException("Errore validazione sicurezza file: " + e.getMessage());
+        }
+    }
 
     public List<Document> getDocumentsForUser(UUID userId) {
         UUID callerId = getCurrentUserId();
@@ -104,6 +134,27 @@ public class DocumentService {
         }
     }
 
+    public String generateSignedUrl(String fileName) {
+        if (fileName == null) return null;
+        String signUrl = supabaseUrl + "/storage/v1/object/sign/" + bucketName + "/" + fileName;
+
+        try {
+            Map<String, Object> body = Map.of("expiresIn", 3600); // 1 ora
+            Map<String, String> response = restClient.post()
+                    .uri(signUrl)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .header("apikey", supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, String>>() {});
+
+            return supabaseUrl + response.get("signedURL");
+        } catch (Exception e) {
+            throw new StorageException("Impossibile generare URL firmato");
+        }
+    }
+
     public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial) {
 
         if (isSpecial && !isAdmin()) {
@@ -125,10 +176,14 @@ public class DocumentService {
     }
 
     private String uploadFileToSupabase(MultipartFile file) {
-        
-        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        String uploadUrl = supabaseUrl + "/storage/v1/object/aziendale_docs/" + fileName;
 
+        validateFileType(file);
+
+        String cleanName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+        String safeFileName = Paths.get(cleanName).getFileName().toString();
+        String fileName = UUID.randomUUID() + "_" + safeFileName;
+
+        String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + fileName;
 
         try {
             restClient.post()
@@ -136,14 +191,13 @@ public class DocumentService {
                     .header("Authorization", "Bearer " + supabaseKey)
                     .header("apikey", supabaseKey)
                     .contentType(MediaType.parseMediaType(file.getContentType()))
-                    .body(file.getResource())
+                    .body(file.getBytes()) // To avoid corruption which we had before
                     .retrieve()
                     .toBodilessEntity();
 
-            
-            return supabaseUrl + "/storage/v1/object/public/aziendale_docs/" + fileName;
+            return fileName;
         } catch (Exception e) {
-            throw new StorageException("Impossibile caricare il file su Supabase: " + e.getMessage());
+            throw new StorageException("Impossibile caricare il file: " + e.getMessage());
         }
     }
 
@@ -156,7 +210,7 @@ public class DocumentService {
             return UUID.fromString(supabaseUuid);
         }
 
-        throw new RuntimeException("Utente non autenticato o Token non valido");
+        throw new AuthenticationCredentialsNotFoundException("Utente non autenticato o token non valido");
     }
 
     @Transactional // Rolls back if upload of new document fails
@@ -222,7 +276,7 @@ public class DocumentService {
     }
 
     @Transactional
-    public void deleteDocumentCompletely(UUID documentId) {
+    public void executePhysicalDeletionForDocument(UUID documentId) {
         Document doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Impossibile eliminare: documento non trovato con ID " + documentId));
 
@@ -281,20 +335,22 @@ public class DocumentService {
         return doc;
     }
 
-    public List<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end) {
+    public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        List<Document> results = documentRepository.searchDocuments(title, category, start, end);
+        Pageable pageable = PageRequest.of(page, size);
 
-        if (!isAdmin) {
-            return results.stream()
-                    .filter(doc -> !doc.isSpecial())
-                    .toList();
-        }
-
-        return results;
+        return documentRepository.searchDocumentsFiltered(title, category, start, end, isAdmin, pageable);
+    }
+    @Transactional
+    public void logicalDeleteDocument(UUID documentId) {
+        Document doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Documento non trovato"));
+        doc.setDeleted(true);
+        doc.setDeletedAt(LocalDate.now());
+        documentRepository.save(doc);
     }
 }

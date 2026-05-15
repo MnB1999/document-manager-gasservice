@@ -34,6 +34,8 @@ spring:
 app:
   notifications:
     recipient-email: ${NOTIFICATION_RECIPIENT}
+  storage:
+    bucket: aziendale_docs
 
 supabase:
   url: ${SUPABASE_URL}
