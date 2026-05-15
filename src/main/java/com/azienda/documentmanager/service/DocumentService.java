@@ -38,6 +38,8 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
 
+    private final RestClient restClient;
+
     public List<Document> getDocumentsForUser(UUID userId) {
         return documentRepository.findByCreatedBy(userId);
     }
@@ -108,7 +110,6 @@ public class DocumentService {
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
         String uploadUrl = supabaseUrl + "/storage/v1/object/aziendale_docs/" + fileName;
 
-        RestClient restClient = RestClient.create();
 
         try {
             restClient.post()
@@ -188,8 +189,6 @@ public class DocumentService {
             String fileName = parts[parts.length - 1];
 
             String deleteUrl = supabaseUrl + "/storage/v1/object/" + bucketName;
-
-            RestClient restClient = RestClient.create();
 
            // Json body with list of files to delete
             Map<String, Object> body = Map.of("prefixes", List.of(fileName));
