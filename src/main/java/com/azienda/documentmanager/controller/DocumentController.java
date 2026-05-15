@@ -41,7 +41,7 @@ public class DocumentController {
 
     @GetMapping("/expiring")
     public List<Document> getExpiring() {
-        return documentService.checkAndFilterExpiringDocuments();
+        return documentService.getExpiringDocumentsReadOnly();
     }
 
     @GetMapping("/all")

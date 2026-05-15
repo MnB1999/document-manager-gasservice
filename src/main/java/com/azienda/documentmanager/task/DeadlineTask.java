@@ -22,7 +22,7 @@ public class DeadlineTask {
     @Scheduled(cron = "0 0 9 * * ?")
     
     public void reportExpiringDocuments() {
-        List<Document> expiring = documentService.checkAndFilterExpiringDocuments();
+        List<Document> expiring = documentService.processAndNotifyExpiringDocuments();
 
         if (!expiring.isEmpty()) {
             emailService.sendDeadlineAlert(recipientEmail, expiring);

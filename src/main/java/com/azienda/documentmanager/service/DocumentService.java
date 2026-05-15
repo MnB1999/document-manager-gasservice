@@ -44,12 +44,30 @@ public class DocumentService {
     private final RestClient restClient;
 
     public List<Document> getDocumentsForUser(UUID userId) {
+        UUID callerId = getCurrentUserId();
+
+        if (!callerId.equals(userId) && !isAdmin()) {
+            throw new AccessDeniedException("Accesso negato: non puoi visualizzare i documenti di un altro utente.");
+        }
+
         return documentRepository.findByCreatedBy(userId);
     }
 
-    public List<Document> checkAndFilterExpiringDocuments() {
-        LocalDate today = LocalDate.now();
+    public List<Document> getExpiringDocumentsReadOnly() {
+        LocalDate limitDate = LocalDate.now().plusDays(21);
+        List<Document> expiring = documentRepository.findByExpiryDateBefore(limitDate);
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            return expiring.stream().filter(doc -> !doc.isSpecial()).toList();
+        }
+        return expiring;
+    }
+
+    public List<Document> processAndNotifyExpiringDocuments() {
+        LocalDate today = LocalDate.now();
         List<Document> expiringDocs = documentRepository.findByExpiryDateBefore(today.plusDays(21));
         List<Document> toNotify = new ArrayList<>();
 
@@ -59,19 +77,17 @@ public class DocumentService {
                 doc.setNotified(true);
                 doc.setLastNotifiedAt(today);
             } else if (doc.getLastNotifiedAt() != null) {
-                long daysSinceLastNotification = java.time.temporal.ChronoUnit.DAYS.between(doc.getLastNotifiedAt(), today);
-
-                if (daysSinceLastNotification >= 11) {
+                long days = java.time.temporal.ChronoUnit.DAYS.between(doc.getLastNotifiedAt(), today);
+                if (days >= 11) {
                     toNotify.add(doc);
                     doc.setLastNotifiedAt(today);
                 }
             }
         }
 
-        if (!expiringDocs.isEmpty()) {
-            documentRepository.saveAll(expiringDocs);
+        if (!toNotify.isEmpty()) {
+            documentRepository.saveAll(toNotify);
         }
-
         return toNotify;
     }
 
@@ -166,17 +182,12 @@ public class DocumentService {
             existingDoc.getHistory().add(oldVersion);
         }
 
-        String newFileUrl = null;
-        if (newFile != null && !newFile.isEmpty()) {
-            newFileUrl = uploadFileToSupabase(newFile);
-            existingDoc.setFileUrl(newFileUrl);
-        }
-
         existingDoc.setExpiryDate(newExpiryDate);
         existingDoc.setNotified(false);
         existingDoc.setLastNotifiedAt(null);
         if (newFile != null && !newFile.isEmpty()) {
-            existingDoc.setFileUrl(uploadFileToSupabase(newFile)); // if this throws, nothing below runs
+            String newFileUrl = uploadFileToSupabase(newFile);
+            existingDoc.setFileUrl(newFileUrl);
             existingDoc.setType(DocumentType.FILE);
         }
 
