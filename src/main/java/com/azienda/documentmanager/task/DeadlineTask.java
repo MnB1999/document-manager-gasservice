@@ -13,13 +13,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DeadlineTask {
 
-    @Value("${NOTIFICATION_RECIPIENT}")
+    @Value("${app.notifications.recipient-email}")
     private String recipientEmail;
 
     private final DocumentService documentService;
     private final EmailService emailService;
 
-    @Scheduled(cron = "0 0 9 */1 * ?")
+    @Scheduled(cron = "0 0 9 * * ?")
     
     public void reportExpiringDocuments() {
         List<Document> expiring = documentService.checkAndFilterExpiringDocuments();

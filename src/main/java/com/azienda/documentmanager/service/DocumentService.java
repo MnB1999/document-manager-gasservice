@@ -263,4 +263,21 @@ public class DocumentService {
         }
         return doc;
     }
+
+    public List<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        List<Document> results = documentRepository.searchDocuments(title, category, start, end);
+
+        if (!isAdmin) {
+            return results.stream()
+                    .filter(doc -> !doc.isSpecial())
+                    .toList();
+        }
+
+        return results;
+    }
 }

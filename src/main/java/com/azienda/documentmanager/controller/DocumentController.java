@@ -61,6 +61,18 @@ public class DocumentController {
         return ResponseEntity.ok(doc);
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Document>> searchDocuments(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        List<Document> results = documentService.searchAllowedDocuments(title, category, startDate, endDate);
+
+        return ResponseEntity.ok(results);
+    }
+
     @PutMapping("/renew/{id}")
     public ResponseEntity<Document> renewDocument(
             @PathVariable UUID id,
