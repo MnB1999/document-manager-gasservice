@@ -8,6 +8,7 @@ import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.repository.DocumentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,7 +24,9 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentService {
+
 
     @Value("${supabase.url}")
     private String supabaseUrl;
@@ -203,7 +206,7 @@ public class DocumentService {
                     .toBodilessEntity();
 
         } catch (Exception e) {
-            System.err.println("Impossibile eliminare il file dal database: " + e.getMessage());
+            log.error("Impossibile eliminare il file da Supabase: {}", e.getMessage(), e);
         }
     }
 
