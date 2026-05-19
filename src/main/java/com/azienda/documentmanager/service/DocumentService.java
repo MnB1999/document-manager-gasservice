@@ -55,7 +55,7 @@ public class DocumentService {
 
     private final RestClient restClient;
 
-    private void validateFileType(MultipartFile file) {
+    private String validateFileType(MultipartFile file) {
         try {
             Tika tika = new Tika();
             String detectedMimeType = tika.detect(file.getInputStream());
@@ -68,9 +68,49 @@ public class DocumentService {
             if (!allowedTypes.contains(detectedMimeType)) {
                 throw new IllegalArgumentException("Tipo file non consentito o malevolo: " + detectedMimeType);
             }
+            return detectedMimeType;
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new StorageException("Errore validazione sicurezza file: " + e.getMessage());
         }
+    }
+
+    private UUID getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+            // On supabase "sub" is the unique user ID
+            String supabaseUuid = jwtAuth.getTokenAttributes().get("sub").toString();
+            return UUID.fromString(supabaseUuid);
+        }
+
+        throw new AuthenticationCredentialsNotFoundException("Utente non autenticato o token non valido");
+    }
+
+    public String generateSignedUrl(String fileName) {
+        if (fileName == null) return null;
+        String signUrl = supabaseUrl + "/storage/v1/object/sign/" + bucketName + "/" + fileName;
+
+        Map<String, String> response;
+        try {
+            Map<String, Object> body = Map.of("expiresIn", 3600); // 1 ora
+            response = restClient.post()
+                    .uri(signUrl)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .header("apikey", supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            throw new StorageException("Impossibile generare URL firmato");
+        }
+
+        if (response == null || response.get("signedURL") == null) {
+            throw new StorageException("Risposta non valida da Supabase: signedURL assente");
+        }
+        return supabaseUrl + response.get("signedURL");
     }
 
     public List<Document> getDocumentsForUser(UUID userId) {
@@ -81,6 +121,22 @@ public class DocumentService {
         }
 
         return documentRepository.findByCreatedBy(userId);
+    }
+
+    public Document getDocumentByID(UUID id) {
+        Document doc = documentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
+
+        if (doc.isSpecial()) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!isAdmin) {
+                throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
+            }
+        }
+        return doc;
     }
 
     public List<Document> getExpiringDocumentsReadOnly() {
@@ -134,25 +190,15 @@ public class DocumentService {
         }
     }
 
-    public String generateSignedUrl(String fileName) {
-        if (fileName == null) return null;
-        String signUrl = supabaseUrl + "/storage/v1/object/sign/" + bucketName + "/" + fileName;
+    public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        try {
-            Map<String, Object> body = Map.of("expiresIn", 3600); // 1 ora
-            Map<String, String> response = restClient.post()
-                    .uri(signUrl)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .header("apikey", supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, String>>() {});
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-            return supabaseUrl + response.get("signedURL");
-        } catch (Exception e) {
-            throw new StorageException("Impossibile generare URL firmato");
-        }
+        Pageable pageable = PageRequest.of(page, size);
+
+        return documentRepository.searchDocumentsFiltered(title, category, start, end, isAdmin, pageable);
     }
 
     public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial) {
@@ -173,44 +219,6 @@ public class DocumentService {
         doc.setCreatedBy(getCurrentUserId());
 
         return documentRepository.save(doc);
-    }
-
-    private String uploadFileToSupabase(MultipartFile file) {
-
-        validateFileType(file);
-
-        String cleanName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        String safeFileName = Paths.get(cleanName).getFileName().toString();
-        String fileName = UUID.randomUUID() + "_" + safeFileName;
-
-        String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + fileName;
-
-        try {
-            restClient.post()
-                    .uri(uploadUrl)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .header("apikey", supabaseKey)
-                    .contentType(MediaType.parseMediaType(file.getContentType()))
-                    .body(file.getBytes()) // To avoid corruption which we had before
-                    .retrieve()
-                    .toBodilessEntity();
-
-            return fileName;
-        } catch (Exception e) {
-            throw new StorageException("Impossibile caricare il file: " + e.getMessage());
-        }
-    }
-
-    private UUID getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            // On supabase "sub" is the unique user ID
-            String supabaseUuid = jwtAuth.getTokenAttributes().get("sub").toString();
-            return UUID.fromString(supabaseUuid);
-        }
-
-        throw new AuthenticationCredentialsNotFoundException("Utente non autenticato o token non valido");
     }
 
     @Transactional // Rolls back if upload of new document fails
@@ -248,17 +256,42 @@ public class DocumentService {
         return documentRepository.save(existingDoc);
     }
 
+    private String uploadFileToSupabase(MultipartFile file) {
+
+        String correctMimeType = validateFileType(file);
+
+        String cleanName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+        String safeFileName = Paths.get(cleanName).getFileName().toString();
+        String fileName = UUID.randomUUID() + "_" + safeFileName;
+
+        String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + fileName;
+
+        try {
+            restClient.post()
+                    .uri(uploadUrl)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .header("apikey", supabaseKey)
+                    .contentType(MediaType.parseMediaType(correctMimeType))
+                    .body(file.getBytes()) // To avoid corruption which we had before
+                    .retrieve()
+                    .toBodilessEntity();
+
+            return fileName;
+        } catch (Exception e) {
+            throw new StorageException("Impossibile caricare il file: " + e.getMessage());
+        }
+    }
+
     private void deleteFileFromSupabase(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) return;
 
         try {
-            String bucketName = "aziendale_docs";
             String[] parts = fileUrl.split("/");
             String fileName = parts[parts.length - 1];
 
             String deleteUrl = supabaseUrl + "/storage/v1/object/" + bucketName;
 
-           // Json body with list of files to delete
+            // Json body with list of files to delete
             Map<String, Object> body = Map.of("prefixes", List.of(fileName));
 
             restClient.method(HttpMethod.DELETE)
@@ -275,24 +308,6 @@ public class DocumentService {
         }
     }
 
-    @Transactional
-    public void executePhysicalDeletionForDocument(UUID documentId) {
-        Document doc = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Impossibile eliminare: documento non trovato con ID " + documentId));
-
-        // Gets old and current URLs for the files we want to delete
-        List<String> urlsToDelete = new ArrayList<>();
-        if (doc.getFileUrl() != null) urlsToDelete.add(doc.getFileUrl());
-
-        doc.getHistory().forEach(version -> {
-            if (version.getFileUrl() != null) urlsToDelete.add(version.getFileUrl());
-        });
-
-        urlsToDelete.forEach(this::deleteFileFromSupabase);
-
-        documentRepository.delete(doc);
-    }
-
     public List<DocumentVersion> getDocumentHistory(UUID documentId) {
         Document doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento non trovato con ID: " + documentId));
@@ -306,45 +321,16 @@ public class DocumentService {
                 throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
             }
         }
+        return doc.getHistory();
 
-        List<DocumentVersion> history = doc.getHistory();
-        history.sort((v1, v2) -> {
-            if (v1.getArchivedAt() == null || v2.getArchivedAt() == null) return 0;
-            return v2.getArchivedAt().compareTo(v1.getArchivedAt());
-        });
-        return history;
-
-        /* Could also write it like this, which I think is better but, at least to me, less readable
+        /*I'm leaving this older comment below just for future reference on how the project was built
+        But I don't need this anymore since I moved the ordering directly to the query
+         */
+        /* (old comment)Could also write it like this, which I think is better but, at least to me, less readable
          history.sort(Comparator.comparing(DocumentVersion::getArchivedAt, Comparator.nullsLast(Comparator.reverseOrder())));
          */
     }
 
-    public Document getDocumentByID(UUID id) {
-        Document doc = documentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
-
-        if (doc.isSpecial()) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            boolean isAdmin = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-            if (!isAdmin) {
-                throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
-            }
-        }
-        return doc;
-    }
-
-    public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        return documentRepository.searchDocumentsFiltered(title, category, start, end, isAdmin, pageable);
-    }
     @Transactional
     public void logicalDeleteDocument(UUID documentId) {
         Document doc = documentRepository.findById(documentId)
@@ -352,5 +338,21 @@ public class DocumentService {
         doc.setDeleted(true);
         doc.setDeletedAt(LocalDate.now());
         documentRepository.save(doc);
+    }
+
+    @Transactional
+    public void executePhysicalDeletionForDocument(Document doc) {
+
+        // Gets old and current URLs for the files we want to delete
+        List<String> urlsToDelete = new ArrayList<>();
+        if (doc.getFileUrl() != null) urlsToDelete.add(doc.getFileUrl());
+
+        doc.getHistory().forEach(version -> {
+            if (version.getFileUrl() != null) urlsToDelete.add(version.getFileUrl());
+        });
+
+        urlsToDelete.forEach(this::deleteFileFromSupabase);
+
+        documentRepository.delete(doc);
     }
 }

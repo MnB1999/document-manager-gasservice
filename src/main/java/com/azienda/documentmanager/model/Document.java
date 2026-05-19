@@ -56,5 +56,6 @@ public class Document {
 
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore // This makes the GET /all call lighter
+    @OrderBy("archivedAt DESC NULLS LAST")
     private List<DocumentVersion> history = new ArrayList<>();
 }

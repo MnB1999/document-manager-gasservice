@@ -23,7 +23,7 @@ public class CleanupTask {
         var toDelete = documentRepository.findReadyForPhysicalDeletion(twoMonthsAgo);
 
         for (var doc : toDelete) {
-            documentService.executePhysicalDeletionForDocument(doc.getId());
+            documentService.executePhysicalDeletionForDocument(doc);
         }
     }
 }
