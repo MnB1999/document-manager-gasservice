@@ -30,6 +30,9 @@ public class Document {
     @Column(name = "type")
     private DocumentType type;
 
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
     @Column(name = "file_url")
     private String fileUrl;
 

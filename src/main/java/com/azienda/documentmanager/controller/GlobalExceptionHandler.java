@@ -2,6 +2,7 @@ package com.azienda.documentmanager.controller;
 
 import com.azienda.documentmanager.exception.ResourceNotFoundException;
 import com.azienda.documentmanager.exception.StorageException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import java.time.LocalDateTime;
 
 @ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -37,8 +39,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetails> handleGlobalException(Exception ex) {
-        // Logs the error on console for debugging (Let's hope I'll never need this :) )
-        ex.printStackTrace();
+        log.error("Errore inatteso", ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Errore Interno", "Si è verificato un errore inaspettato. Riprova più tardi.");
     }
 

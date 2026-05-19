@@ -6,10 +6,10 @@ import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.model.DocumentType;
 import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.repository.DocumentRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Page;
@@ -113,6 +113,7 @@ public class DocumentService {
         return supabaseUrl + response.get("signedURL");
     }
 
+    @Transactional(readOnly = true)
     public List<Document> getDocumentsForUser(UUID userId) {
         UUID callerId = getCurrentUserId();
 
@@ -123,27 +124,24 @@ public class DocumentService {
         return documentRepository.findByCreatedBy(userId);
     }
 
+    @Transactional(readOnly = true)
     public Document getDocumentByID(UUID id) {
         Document doc = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
 
-        if (doc.isSpecial()) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            boolean isAdmin = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-            if (!isAdmin) {
-                throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
-            }
+        if (doc.isSpecial() && !isAdmin()) {
+            throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
         }
         return doc;
     }
 
+    @Transactional(readOnly = true)
     public List<Document> getExpiringDocumentsReadOnly() {
         LocalDate limitDate = LocalDate.now().plusDays(21);
         return documentRepository.findByExpiryDateBefore(limitDate);
     }
 
+    @Transactional
     public List<Document> processAndNotifyExpiringDocuments() {
         LocalDate today = LocalDate.now();
         List<Document> expiringDocs = documentRepository.findByExpiryDateBefore(today.plusDays(21));
@@ -169,31 +167,25 @@ public class DocumentService {
         return toNotify;
     }
 
+
+    @Transactional(readOnly = true)
     public List<Document> getAllAllowedDocuments() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        if (isAdmin) {
+        if (isAdmin()) {
             return documentRepository.findAll();
         } else {
             return documentRepository.findBySpecialFalse();
         }
     }
 
+
+    @Transactional(readOnly = true)
     public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
         Pageable pageable = PageRequest.of(page, size);
-
-        return documentRepository.searchDocumentsFiltered(title, category, start, end, isAdmin, pageable);
+        return documentRepository.searchDocumentsFiltered(title, category, start, end, isAdmin(), pageable);
     }
 
-    public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial) {
+    @Transactional
+    public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial, String content) {
 
         if (isSpecial && !isAdmin()) {
             throw new AccessDeniedException("Operazione negata: solo gli amministratori possono caricare documenti speciali.");
@@ -207,6 +199,7 @@ public class DocumentService {
         doc.setExpiryDate(expiryDate);
         doc.setSpecial(isSpecial);
         doc.setFileUrl(fileUrl);
+        doc.setContent(content);
         doc.setType(file != null && !file.isEmpty() ? DocumentType.FILE : DocumentType.TEXT_REMINDER);
         doc.setCreatedBy(getCurrentUserId());
 
@@ -214,7 +207,7 @@ public class DocumentService {
     }
 
     @Transactional // Rolls back if upload of new document fails
-    public Document renewDocument(UUID documentId, MultipartFile newFile, LocalDate newExpiryDate) {
+    public Document renewDocument(UUID documentId, MultipartFile newFile, LocalDate newExpiryDate, String newContent) {
         Optional<Document> doc = documentRepository.findById(documentId);
 
         if (doc.isEmpty()) {
@@ -244,7 +237,9 @@ public class DocumentService {
             existingDoc.setFileUrl(newFileUrl);
             existingDoc.setType(DocumentType.FILE);
         }
-
+        if (newContent != null && !newContent.isBlank()) {
+            existingDoc.setContent(newContent);
+        }
         return documentRepository.save(existingDoc);
     }
 
@@ -300,18 +295,13 @@ public class DocumentService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<DocumentVersion> getDocumentHistory(UUID documentId) {
         Document doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento non trovato con ID: " + documentId));
 
-        if (doc.isSpecial()) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            boolean isAdmin = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-            if (!isAdmin) {
-                throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
-            }
+        if (doc.isSpecial() && !isAdmin()) {
+            throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
         }
         return doc.getHistory();
 

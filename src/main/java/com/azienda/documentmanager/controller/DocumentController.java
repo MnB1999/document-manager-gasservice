@@ -27,11 +27,11 @@ public class DocumentController {
                                            @RequestParam("title") String title,
                                            @RequestParam("category") String category,
                                            @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
-                                           @RequestParam("isSpecial") boolean isSpecial) {
+                                           @RequestParam("isSpecial") boolean isSpecial,
+                                           @RequestParam(value = "content", required = false) String content) {
 
-        Document savedDoc = documentService.saveDocument(file, title, category, expiryDate, isSpecial);
+        Document savedDoc = documentService.saveDocument(file, title, category, expiryDate, isSpecial, content);
         return ResponseEntity.ok(savedDoc);
-
     }
 
 
@@ -88,9 +88,10 @@ public class DocumentController {
     public ResponseEntity<Document> renewDocument(
             @PathVariable UUID id,
             @RequestParam(value = "file", required = false) MultipartFile file,
-            @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newExpiryDate) {
+            @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newExpiryDate,
+            @RequestParam(value = "content", required = false) String content) {
 
-        Document renewedDoc = documentService.renewDocument(id, file, newExpiryDate);
+        Document renewedDoc = documentService.renewDocument(id, file, newExpiryDate, content);
         return ResponseEntity.ok(renewedDoc);
     }
 
