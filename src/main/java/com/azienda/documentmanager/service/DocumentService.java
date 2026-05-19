@@ -141,15 +141,7 @@ public class DocumentService {
 
     public List<Document> getExpiringDocumentsReadOnly() {
         LocalDate limitDate = LocalDate.now().plusDays(21);
-        List<Document> expiring = documentRepository.findByExpiryDateBefore(limitDate);
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-        if (!isAdmin) {
-            return expiring.stream().filter(doc -> !doc.isSpecial()).toList();
-        }
-        return expiring;
+        return documentRepository.findByExpiryDateBefore(limitDate);
     }
 
     public List<Document> processAndNotifyExpiringDocuments() {

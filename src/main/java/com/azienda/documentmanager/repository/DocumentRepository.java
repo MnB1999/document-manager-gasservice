@@ -20,10 +20,6 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findBySpecialFalse();
 
-    // Dynamic filter searching for the users, including partial text recognition
-    @Query("SELECT d FROM Document d WHERE d.expiryDate < :date AND (:isAdmin = true OR d.special = false)")
-    Page<Document> findExpiringFiltered(@Param("date") LocalDate date, @Param("isAdmin") boolean isAdmin, Pageable pageable);
-
     @Query("SELECT d FROM Document d WHERE " +
             "(:title IS NULL OR LOWER(d.title) LIKE LOWER(CONCAT('%', :title, '%'))) AND " +
             "(:category IS NULL OR d.category = :category) AND " +
