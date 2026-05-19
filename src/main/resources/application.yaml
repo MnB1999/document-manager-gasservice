@@ -36,14 +36,11 @@ app:
     recipient-email: ${NOTIFICATION_RECIPIENT}
   storage:
     bucket: aziendale_docs
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN}
 
 supabase:
   url: ${SUPABASE_URL}
   key: ${SUPABASE_KEY}
   jwt:
     secret: ${JWT_SECRET}
-
-logging:
-  level:
-    org.springframework.security: DEBUG
-

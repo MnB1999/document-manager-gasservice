@@ -72,7 +72,9 @@ public class DocumentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        Page<Document> results = documentService.searchAllowedDocuments(title, category, startDate, endDate, page, size);
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        Page<Document> results = documentService.searchAllowedDocuments(title, category, startDate, endDate, safePage, safeSize);
         return ResponseEntity.ok(results);
     }
 
