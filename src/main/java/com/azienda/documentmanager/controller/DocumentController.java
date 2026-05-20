@@ -3,6 +3,7 @@ package com.azienda.documentmanager.controller;
 import com.azienda.documentmanager.model.Document;
 import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.service.DocumentService;
+import com.azienda.documentmanager.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final StorageService storageService;
 
     @PostMapping("/upload")
     @Operation(summary = "Carica un documento o crea un promemoria testuale")
@@ -104,7 +106,7 @@ public class DocumentController {
     @Operation(summary = "Genera un URL firmato per scaricare il file")
     public ResponseEntity<Map<String, String>> getDownloadUrl(@PathVariable UUID id) {
         Document doc = documentService.getDocumentByID(id);
-        String signedUrl = documentService.generateSignedUrl(doc.getFileUrl());
+        String signedUrl = storageService.generateSignedUrl(doc.getFileUrl());
         return ResponseEntity.ok(Map.of("url", signedUrl));
     }
 

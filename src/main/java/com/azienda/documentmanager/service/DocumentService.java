@@ -37,14 +37,8 @@ import java.util.*;
 public class DocumentService {
 
 
-    @Value("${supabase.url}")
-    private String supabaseUrl;
 
-    @Value("${supabase.key}")
-    private String supabaseKey;
-
-    @Value("${app.storage.bucket}")
-    private String bucketName;
+    private final StorageService storageService;
 
     private boolean isAdmin() {
         return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
@@ -53,8 +47,6 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final DocumentAuditLogRepository auditLogRepository;
-
-    private final RestClient restClient;
 
     private UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -86,52 +78,6 @@ public class DocumentService {
         auditLogRepository.save(entry);
     }
 
-    private String validateFileType(MultipartFile file) {
-        try {
-            Tika tika = new Tika();
-            String detectedMimeType = tika.detect(file.getInputStream());
-            List<String> allowedTypes = List.of(
-                    "application/pdf", "image/jpeg", "image/png",
-                    "application/msword",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            );
-
-            if (!allowedTypes.contains(detectedMimeType)) {
-                throw new IllegalArgumentException("Tipo file non consentito o malevolo: " + detectedMimeType);
-            }
-            return detectedMimeType;
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new StorageException("Errore validazione sicurezza file: " + e.getMessage());
-        }
-    }
-
-
-    public String generateSignedUrl(String fileName) {
-        if (fileName == null) return null;
-        String signUrl = supabaseUrl + "/storage/v1/object/sign/" + bucketName + "/" + fileName;
-
-        Map<String, String> response;
-        try {
-            Map<String, Object> body = Map.of("expiresIn", 3600); // 1 ora
-            response = restClient.post()
-                    .uri(signUrl)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .header("apikey", supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, String>>() {});
-        } catch (Exception e) {
-            throw new StorageException("Impossibile generare URL firmato");
-        }
-
-        if (response == null || response.get("signedURL") == null) {
-            throw new StorageException("Risposta non valida da Supabase: signedURL assente");
-        }
-        return supabaseUrl + response.get("signedURL");
-    }
 
     @Transactional(readOnly = true)
     public Page<Document> getDocumentsForUser(UUID userId, int page, int size) {
@@ -204,7 +150,7 @@ public class DocumentService {
             throw new AccessDeniedException("Operazione negata: solo gli amministratori possono caricare documenti speciali.");
         }
 
-        String fileUrl = (file != null && !file.isEmpty()) ? uploadFileToSupabase(file) : null;
+        String fileUrl = (file != null && !file.isEmpty()) ? storageService.uploadFileToSupabase(file) : null;
 
         Document doc = new Document();
         doc.setTitle(title);
@@ -248,7 +194,7 @@ public class DocumentService {
         existingDoc.setNotified(false);
         existingDoc.setLastNotifiedAt(null);
         if (newFile != null && !newFile.isEmpty()) {
-            String newFileUrl = uploadFileToSupabase(newFile);
+            String newFileUrl = storageService.uploadFileToSupabase(newFile);
             existingDoc.setFileUrl(newFileUrl);
             existingDoc.setType(DocumentType.FILE);
         }
@@ -258,58 +204,6 @@ public class DocumentService {
         Document renewed = documentRepository.save(existingDoc);
         logAudit(renewed.getId(), renewed.getTitle(), AuditAction.RENEW);
         return renewed;
-    }
-
-    private String uploadFileToSupabase(MultipartFile file) {
-
-        String correctMimeType = validateFileType(file);
-
-        String cleanName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        String safeFileName = Paths.get(cleanName).getFileName().toString();
-        String fileName = UUID.randomUUID() + "_" + safeFileName;
-
-        String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + fileName;
-
-        try {
-            restClient.post()
-                    .uri(uploadUrl)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .header("apikey", supabaseKey)
-                    .contentType(MediaType.parseMediaType(correctMimeType))
-                    .body(file.getBytes()) // To avoid corruption which we had before
-                    .retrieve()
-                    .toBodilessEntity();
-
-            return fileName;
-        } catch (Exception e) {
-            throw new StorageException("Impossibile caricare il file: " + e.getMessage());
-        }
-    }
-
-    private void deleteFileFromSupabase(String fileUrl) {
-        if (fileUrl == null || fileUrl.isEmpty()) return;
-
-        try {
-            String[] parts = fileUrl.split("/");
-            String fileName = parts[parts.length - 1];
-
-            String deleteUrl = supabaseUrl + "/storage/v1/object/" + bucketName;
-
-            // Json body with list of files to delete
-            Map<String, Object> body = Map.of("prefixes", List.of(fileName));
-
-            restClient.method(HttpMethod.DELETE)
-                    .uri(deleteUrl)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .header("apikey", supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .toBodilessEntity();
-
-        } catch (Exception e) {
-            log.error("Impossibile eliminare il file da Supabase: {}", e.getMessage(), e);
-        }
     }
 
     @Transactional(readOnly = true)
@@ -351,7 +245,7 @@ public class DocumentService {
             if (version.getFileUrl() != null) urlsToDelete.add(version.getFileUrl());
         });
 
-        urlsToDelete.forEach(this::deleteFileFromSupabase);
+        urlsToDelete.forEach(url -> storageService.deleteFileFromSupabase(url));
 
         logAudit(doc.getId(), doc.getTitle(), AuditAction.PHYSICAL_DELETE);
         documentRepository.delete(doc);
