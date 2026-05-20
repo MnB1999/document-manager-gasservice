@@ -39,9 +39,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/audit/**").hasRole("ADMIN")
                         // The service will do the filtering for these 2 requests
                         .requestMatchers(HttpMethod.POST, "/api/documents/upload").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/documents/renew/**").authenticated()
+
                         .requestMatchers(HttpMethod.DELETE, "/api/documents/**").hasRole("ADMIN")
                         .requestMatchers("/api/documents/search", "/api/documents/all").authenticated()
                         .requestMatchers("/api/documents").authenticated()

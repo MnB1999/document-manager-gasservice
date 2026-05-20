@@ -14,11 +14,15 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
+    // Non-pageable like before used by processAndNotifyExpiringDocuments which needs the full list
     List<Document> findByCreatedBy(UUID userId);
-
     List<Document> findByExpiryDateBefore(LocalDate date);
-
     List<Document> findBySpecialFalse();
+
+    // Pageable variants used by the UI endpoints
+    Page<Document> findByCreatedBy(UUID userId, Pageable pageable);
+    Page<Document> findByExpiryDateBefore(LocalDate date, Pageable pageable);
+    Page<Document> findBySpecialFalse(Pageable pageable);
 
     @Query("SELECT d FROM Document d WHERE " +
             "(:title IS NULL OR LOWER(d.title) LIKE LOWER(CONCAT('%', :title, '%'))) AND " +

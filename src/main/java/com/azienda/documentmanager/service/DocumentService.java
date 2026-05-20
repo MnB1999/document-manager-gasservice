@@ -2,9 +2,8 @@ package com.azienda.documentmanager.service;
 
 import com.azienda.documentmanager.exception.ResourceNotFoundException;
 import com.azienda.documentmanager.exception.StorageException;
-import com.azienda.documentmanager.model.Document;
-import com.azienda.documentmanager.model.DocumentType;
-import com.azienda.documentmanager.model.DocumentVersion;
+import com.azienda.documentmanager.model.*;
+import com.azienda.documentmanager.repository.DocumentAuditLogRepository;
 import com.azienda.documentmanager.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +28,7 @@ import org.springframework.security.core.Authentication;
 
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -52,8 +52,39 @@ public class DocumentService {
     }
 
     private final DocumentRepository documentRepository;
+    private final DocumentAuditLogRepository auditLogRepository;
 
     private final RestClient restClient;
+
+    private UUID getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+            // On supabase "sub" is the unique user ID
+            String supabaseUuid = jwtAuth.getTokenAttributes().get("sub").toString();
+            return UUID.fromString(supabaseUuid);
+        }
+
+        throw new AuthenticationCredentialsNotFoundException("Utente non autenticato o token non valido");
+    }
+
+    private UUID getCurrentUserIdOrNull() {
+        try {
+            return getCurrentUserId();
+        } catch (Exception e) {
+            return null; // Null in cases like cleanup task (system triggered)
+        }
+    }
+
+    private void logAudit(UUID documentId, String documentTitle, AuditAction action) {
+        DocumentAuditLog entry = new DocumentAuditLog();
+        entry.setDocumentId(documentId);
+        entry.setDocumentTitle(documentTitle);
+        entry.setUserId(getCurrentUserIdOrNull());
+        entry.setAction(action);
+        entry.setPerformedAt(LocalDateTime.now());
+        auditLogRepository.save(entry);
+    }
 
     private String validateFileType(MultipartFile file) {
         try {
@@ -76,17 +107,6 @@ public class DocumentService {
         }
     }
 
-    private UUID getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            // On supabase "sub" is the unique user ID
-            String supabaseUuid = jwtAuth.getTokenAttributes().get("sub").toString();
-            return UUID.fromString(supabaseUuid);
-        }
-
-        throw new AuthenticationCredentialsNotFoundException("Utente non autenticato o token non valido");
-    }
 
     public String generateSignedUrl(String fileName) {
         if (fileName == null) return null;
@@ -114,14 +134,8 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public List<Document> getDocumentsForUser(UUID userId) {
-        UUID callerId = getCurrentUserId();
-
-        if (!callerId.equals(userId) && !isAdmin()) {
-            throw new AccessDeniedException("Accesso negato: non puoi visualizzare i documenti di un altro utente.");
-        }
-
-        return documentRepository.findByCreatedBy(userId);
+    public Page<Document> getDocumentsForUser(UUID userId, int page, int size) {
+        return documentRepository.findByCreatedBy(userId, PageRequest.of(page, size));
     }
 
     @Transactional(readOnly = true)
@@ -136,9 +150,9 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public List<Document> getExpiringDocumentsReadOnly() {
+    public Page<Document> getExpiringDocumentsReadOnly(int page, int size) {
         LocalDate limitDate = LocalDate.now().plusDays(21);
-        return documentRepository.findByExpiryDateBefore(limitDate);
+        return documentRepository.findByExpiryDateBefore(limitDate, PageRequest.of(page, size));
     }
 
     @Transactional
@@ -167,16 +181,15 @@ public class DocumentService {
         return toNotify;
     }
 
-
     @Transactional(readOnly = true)
-    public List<Document> getAllAllowedDocuments() {
+    public Page<Document> getAllAllowedDocuments(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
         if (isAdmin()) {
-            return documentRepository.findAll();
+            return documentRepository.findAll(pageable);
         } else {
-            return documentRepository.findBySpecialFalse();
+            return documentRepository.findBySpecialFalse(pageable);
         }
     }
-
 
     @Transactional(readOnly = true)
     public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
@@ -203,7 +216,9 @@ public class DocumentService {
         doc.setType(file != null && !file.isEmpty() ? DocumentType.FILE : DocumentType.TEXT_REMINDER);
         doc.setCreatedBy(getCurrentUserId());
 
-        return documentRepository.save(doc);
+        Document saved = documentRepository.save(doc);
+        logAudit(saved.getId(), saved.getTitle(), AuditAction.UPLOAD);
+        return saved;
     }
 
     @Transactional // Rolls back if upload of new document fails
@@ -240,7 +255,9 @@ public class DocumentService {
         if (newContent != null && !newContent.isBlank()) {
             existingDoc.setContent(newContent);
         }
-        return documentRepository.save(existingDoc);
+        Document renewed = documentRepository.save(existingDoc);
+        logAudit(renewed.getId(), renewed.getTitle(), AuditAction.RENEW);
+        return renewed;
     }
 
     private String uploadFileToSupabase(MultipartFile file) {
@@ -320,6 +337,7 @@ public class DocumentService {
         doc.setDeleted(true);
         doc.setDeletedAt(LocalDate.now());
         documentRepository.save(doc);
+        logAudit(doc.getId(), doc.getTitle(), AuditAction.DELETE);
     }
 
     @Transactional
@@ -335,6 +353,23 @@ public class DocumentService {
 
         urlsToDelete.forEach(this::deleteFileFromSupabase);
 
+        logAudit(doc.getId(), doc.getTitle(), AuditAction.PHYSICAL_DELETE);
         documentRepository.delete(doc);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentAuditLog> getAuditLogForDocument(UUID documentId) {
+        if (!isAdmin()) {
+            throw new AccessDeniedException("Permesso negato");
+        }
+        return auditLogRepository.findByDocumentIdOrderByPerformedAtDesc(documentId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<DocumentAuditLog> getAllAuditLogs(int page, int size) {
+        if (!isAdmin()) {
+            throw new AccessDeniedException("Permesso negato");
+        }
+        return auditLogRepository.findAllByOrderByPerformedAtDesc(PageRequest.of(page, size));
     }
 }
