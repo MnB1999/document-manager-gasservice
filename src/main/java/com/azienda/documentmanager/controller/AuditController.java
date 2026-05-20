@@ -1,6 +1,7 @@
 package com.azienda.documentmanager.controller;
 
 import com.azienda.documentmanager.model.DocumentAuditLog;
+import com.azienda.documentmanager.service.AuditService;
 import com.azienda.documentmanager.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,11 +20,12 @@ import java.util.UUID;
 public class AuditController {
 
     private final DocumentService documentService;
+    private final AuditService auditService;
 
     @GetMapping("/document/{documentId}")
     @Operation(summary = "Cronologia operazioni di un documento")
     public ResponseEntity<List<DocumentAuditLog>> getDocumentAudit(@PathVariable UUID documentId) {
-        return ResponseEntity.ok(documentService.getAuditLogForDocument(documentId));
+        return ResponseEntity.ok(auditService.getAuditLogForDocument(documentId));
     }
 
     @GetMapping
@@ -33,6 +35,6 @@ public class AuditController {
             @RequestParam(defaultValue = "20") int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(1, Math.min(size, 100));
-        return ResponseEntity.ok(documentService.getAllAuditLogs(safePage, safeSize));
+        return ResponseEntity.ok(auditService.getAllAuditLogs(safePage, safeSize));
     }
 }
