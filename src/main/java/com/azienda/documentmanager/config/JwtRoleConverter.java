@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 
 @Component
@@ -21,9 +22,8 @@ public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationTo
 
         Map<String, Object> appMetadata = jwt.getClaim("app_metadata");
 
-        if (appMetadata != null && appMetadata.containsKey("role")) {
-            String role = (String) appMetadata.get("role");
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+        if (appMetadata != null && appMetadata.get("role") instanceof String role && !role.isBlank()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase(Locale.ROOT)));
         } else {
             authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
         }
