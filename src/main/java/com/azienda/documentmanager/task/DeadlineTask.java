@@ -1,7 +1,6 @@
 package com.azienda.documentmanager.task;
 
 import com.azienda.documentmanager.model.Document;
-import com.azienda.documentmanager.service.DocumentService;
 import com.azienda.documentmanager.service.EmailService;
 import com.azienda.documentmanager.service.NotificationService;
 import lombok.RequiredArgsConstructor;

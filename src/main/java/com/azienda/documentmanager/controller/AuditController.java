@@ -2,7 +2,6 @@ package com.azienda.documentmanager.controller;
 
 import com.azienda.documentmanager.model.DocumentAuditLog;
 import com.azienda.documentmanager.service.AuditService;
-import com.azienda.documentmanager.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import java.util.UUID;
 @Tag(name = "Audit", description = "Registro delle operazioni sui documenti — solo amministratori")
 public class AuditController {
 
-    private final DocumentService documentService;
     private final AuditService auditService;
 
     @GetMapping("/document/{documentId}")

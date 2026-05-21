@@ -138,13 +138,6 @@ public class DocumentService {
             throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
         }
         return doc.getHistory();
-
-        /*I'm leaving this older comment below just for future reference on how the project was built
-        But I don't need this anymore since I moved the ordering directly to the query
-         */
-        /* (old comment)Could also write it like this, which I think is better but, at least to me, less readable
-         history.sort(Comparator.comparing(DocumentVersion::getArchivedAt, Comparator.nullsLast(Comparator.reverseOrder())));
-         */
     }
 
     @Transactional
@@ -158,20 +151,9 @@ public class DocumentService {
     }
 
     @Transactional
-    public void executePhysicalDeletionForDocument(Document doc) {
-
-        // Gets old and current URLs for the files we want to delete
-        List<String> urlsToDelete = new ArrayList<>();
-        if (doc.getFileUrl() != null) urlsToDelete.add(doc.getFileUrl());
-
-        doc.getHistory().forEach(version -> {
-            if (version.getFileUrl() != null) urlsToDelete.add(version.getFileUrl());
-        });
-
-        urlsToDelete.forEach(url -> storageService.deleteFileFromSupabase(url));
-
+    public void finalizePhysicalDeletion(Document doc) {
         auditService.logAudit(doc.getId(), doc.getTitle(), AuditAction.PHYSICAL_DELETE);
-        documentRepository.delete(doc);
+        documentRepository.deleteVersionsByDocumentId(doc.getId());
+        documentRepository.physicalDeleteById(doc.getId());
     }
-
 }

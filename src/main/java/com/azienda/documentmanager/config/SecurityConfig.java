@@ -92,27 +92,3 @@ public class SecurityConfig {
         return jwtDecoder;
     }
 }
-
-
-
-
-
-
-
-    // Used this snippet to test stuff with JSWTs and http request, do not need it now
-   /* @Bean
-    public InMemoryUserDetailsManager userDetailsService() {
-        UserDetails user = User.withDefaultPasswordEncoder()
-                .username("tecnico")
-                .password("pass123")
-                .roles("USER")
-                .build();
-
-        UserDetails admin = User.withDefaultPasswordEncoder()
-                .username("admin")
-                .password("admin123")
-                .roles("ADMIN")
-                .build();
-
-        return new InMemoryUserDetailsManager(user, admin);
-    }*/

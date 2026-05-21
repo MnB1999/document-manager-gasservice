@@ -107,17 +107,22 @@ public class StorageService{
         }
     }
 
-    public void deleteFileFromSupabase(String fileUrl) {
-        if (fileUrl == null || fileUrl.isEmpty()) return;
+    public void deleteFilesFromSupabase(List<String> fileUrls) {
+        if (fileUrls == null || fileUrls.isEmpty()) return;
+
+        List<String> fileNames = fileUrls.stream()
+                .filter(url -> url != null && !url.isBlank())
+                .map(url -> {
+                    String[] parts = url.split("/");
+                    return parts[parts.length - 1];
+                })
+                .toList();
+
+        if (fileNames.isEmpty()) return;
 
         try {
-            String[] parts = fileUrl.split("/");
-            String fileName = parts[parts.length - 1];
-
             String deleteUrl = supabaseUrl + "/storage/v1/object/" + bucketName;
-
-            // Json body with list of files to delete
-            Map<String, Object> body = Map.of("prefixes", List.of(fileName));
+            Map<String, Object> body = Map.of("prefixes", fileNames);
 
             restClient.method(HttpMethod.DELETE)
                     .uri(deleteUrl)
@@ -127,10 +132,8 @@ public class StorageService{
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
-
         } catch (Exception e) {
-            log.error("Impossibile eliminare il file da Supabase: {}", e.getMessage(), e);
+            throw new StorageException("Errore durante l'eliminazione batch da Supabase: " + e.getMessage());
         }
     }
-
 }
