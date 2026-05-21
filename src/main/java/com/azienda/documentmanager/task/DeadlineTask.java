@@ -17,16 +17,15 @@ public class DeadlineTask {
     @Value("${app.notifications.recipient-email}")
     private String recipientEmail;
 
-    private final EmailService emailService;
     private final NotificationService notificationService;
 
     @Scheduled(cron = "0 0 9 * * ?")
     @SchedulerLock(name = "reportExpiringDocuments", lockAtLeastFor = "5m", lockAtMostFor = "14m")
     public void reportExpiringDocuments() {
-        List<Document> expiring = notificationService.processAndNotifyExpiringDocuments();
+        List<Document> expiring = notificationService.getDocumentsToNotify();
 
         if (!expiring.isEmpty()) {
-            emailService.sendDeadlineAlert(recipientEmail, expiring);
+            notificationService.notifyAndUpdateState(recipientEmail, expiring);
         }
     }
 }
