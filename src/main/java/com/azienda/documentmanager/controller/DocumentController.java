@@ -54,12 +54,8 @@ public class DocumentController {
 
     @GetMapping("/expiring")
     @Operation(summary = "Documenti in scadenza entro 21 giorni")
-    public ResponseEntity<Page<Document>> getExpiring(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.max(1, Math.min(size, 100));
-        return ResponseEntity.ok(documentService.getExpiringDocumentsReadOnly(safePage, safeSize));
+    public ResponseEntity<List<Document>> getExpiring () {
+        return ResponseEntity.ok(documentService.getExpiringDocumentsReadOnly());
     }
 
     @GetMapping("/all")

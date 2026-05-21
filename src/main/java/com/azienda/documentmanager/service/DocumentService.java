@@ -45,9 +45,8 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Document> getExpiringDocumentsReadOnly(int page, int size) {
-        LocalDate limitDate = LocalDate.now().plusDays(21);
-        return documentRepository.findByExpiryDateBefore(limitDate, PageRequest.of(page, size));
+    public List<Document> getExpiringDocumentsReadOnly () {
+        return documentRepository.findByExpiryDateBetween(LocalDate.now(), LocalDate.now().plusDays(21));
     }
 
     @Transactional(readOnly = true)

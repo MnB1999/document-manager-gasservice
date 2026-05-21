@@ -15,8 +15,8 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
-    // Non-pageable like before used by processAndNotifyExpiringDocuments which needs the full list
-    List<Document> findByExpiryDateBefore(LocalDate date);
+    // Non-pageable like before used to notify so I need the whole list of documents
+    List<Document> findByExpiryDateBetween(LocalDate start, LocalDate end);
 
     // Pageable variants used by the UI endpoints
     Page<Document> findByCreatedBy(UUID userId, Pageable pageable);
