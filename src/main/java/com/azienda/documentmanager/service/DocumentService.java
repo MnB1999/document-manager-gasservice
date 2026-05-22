@@ -89,24 +89,32 @@ public class DocumentService {
         return saved;
     }
 
-    @Transactional // Rolls back if upload of new document fails
+    @Transactional // DB changes roll back on failure, supabase upload is best-effort and may leave orphans on rollback
     public Document renewDocument(UUID documentId, MultipartFile newFile, LocalDate newExpiryDate, String newContent) {
-        Optional<Document> doc = documentRepository.findById(documentId);
-
-        if (doc.isEmpty()) {
-            throw new ResourceNotFoundException("Documento non trovato con ID: " + documentId);
+        if (newExpiryDate.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("La data di scadenza non può essere nel passato.");
         }
 
-        Document existingDoc = doc.get();
+        Document existingDoc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Documento non trovato con ID: " + documentId));
 
         if (existingDoc.isSpecial() && !securityService.isAdmin()) {
             throw new AccessDeniedException("Operazione negata: solo gli amministratori possono modificare documenti speciali.");
         }
 
-        if (existingDoc.getFileUrl() != null) {
+        boolean isFileChanging = (newFile != null && !newFile.isEmpty());
+        boolean isContentChanging = (newContent != null && !newContent.isBlank() && !newContent.equals(existingDoc.getContent()));
+        boolean isExpiryChanging = (newExpiryDate != null && !newExpiryDate.equals(existingDoc.getExpiryDate()));
+
+        if (!isFileChanging && !isContentChanging && !isExpiryChanging) {
+            return existingDoc;
+        }
+
+        if (isFileChanging || isContentChanging) {
             DocumentVersion oldVersion = new DocumentVersion();
             oldVersion.setDocument(existingDoc);
             oldVersion.setFileUrl(existingDoc.getFileUrl());
+            oldVersion.setContent(existingDoc.getContent());
             oldVersion.setExpiryDate(existingDoc.getExpiryDate());
             oldVersion.setArchivedAt(LocalDate.now());
             existingDoc.getHistory().add(oldVersion);
@@ -115,14 +123,16 @@ public class DocumentService {
         existingDoc.setExpiryDate(newExpiryDate);
         existingDoc.setNotified(false);
         existingDoc.setLastNotifiedAt(null);
-        if (newFile != null && !newFile.isEmpty()) {
-            String newFileUrl = storageService.uploadFileToSupabase(newFile);
-            existingDoc.setFileUrl(newFileUrl);
+
+        if (isFileChanging) {
+            existingDoc.setFileUrl(storageService.uploadFileToSupabase(newFile));
             existingDoc.setType(DocumentType.FILE);
         }
-        if (newContent != null && !newContent.isBlank()) {
+
+        if (isContentChanging) {
             existingDoc.setContent(newContent);
         }
+
         Document renewed = documentRepository.save(existingDoc);
         auditService.logAudit(renewed.getId(), renewed.getTitle(), AuditAction.RENEW);
         return renewed;

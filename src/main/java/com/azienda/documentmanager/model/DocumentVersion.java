@@ -27,6 +27,9 @@ public class DocumentVersion {
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
 
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
     @Column(name = "archived_at")
     private LocalDate archivedAt;
 }
