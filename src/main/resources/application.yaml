@@ -42,8 +42,6 @@ app:
 supabase:
   url: ${SUPABASE_URL}
   key: ${SUPABASE_KEY}
-  jwt:
-    secret: ${JWT_SECRET}
 
 springdoc:
   swagger-ui:

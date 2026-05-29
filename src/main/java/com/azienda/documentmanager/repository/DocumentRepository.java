@@ -20,6 +20,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     // Pageable variants used by the UI endpoints
     Page<Document> findByCreatedBy(UUID userId, Pageable pageable);
+    Page<Document> findByCreatedByAndSpecialFalse(UUID userId, Pageable pageable);
     Page<Document> findByExpiryDateBefore(LocalDate date, Pageable pageable);
     Page<Document> findBySpecialFalse(Pageable pageable);
 

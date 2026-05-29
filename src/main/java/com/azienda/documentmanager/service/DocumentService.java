@@ -29,8 +29,21 @@ public class DocumentService {
 
 
     @Transactional(readOnly = true)
+    public Page<Document> getAllAllowedDocuments(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        if (securityService.isAdmin()) {
+            return documentRepository.findAll(pageable);
+        } else {
+            return documentRepository.findBySpecialFalse(pageable);
+        }
+    }
+
+    @Transactional(readOnly = true)
     public Page<Document> getDocumentsForUser(UUID userId, int page, int size) {
-        return documentRepository.findByCreatedBy(userId, PageRequest.of(page, size));
+        if  (securityService.isAdmin()) {
+            return documentRepository.findByCreatedBy(userId, PageRequest.of(page, size));
+        }
+        return documentRepository.findByCreatedByAndSpecialFalse(userId, PageRequest.of(page, size));
     }
 
     @Transactional(readOnly = true)
@@ -47,16 +60,6 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public List<Document> getExpiringDocumentsReadOnly () {
         return documentRepository.findByExpiryDateBetween(LocalDate.now(), LocalDate.now().plusDays(21));
-    }
-
-    @Transactional(readOnly = true)
-    public Page<Document> getAllAllowedDocuments(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        if (securityService.isAdmin()) {
-            return documentRepository.findAll(pageable);
-        } else {
-            return documentRepository.findBySpecialFalse(pageable);
-        }
     }
 
     @Transactional(readOnly = true)
