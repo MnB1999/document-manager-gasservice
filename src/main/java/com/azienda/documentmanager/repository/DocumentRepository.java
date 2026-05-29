@@ -15,7 +15,7 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
-    // Spring data builds the derived query based on its name
+    // Spring data builds the derived query based on its name, what do you know...
     // Non-pageable like before used to notify so I need the whole list of documents
     List<Document> findByExpiryDateLessThanEqual(LocalDate treshold);
 

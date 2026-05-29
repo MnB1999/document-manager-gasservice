@@ -27,47 +27,9 @@ public class DocumentService {
     private final StorageService storageService;
     private final SecurityService securityService;
 
-
-    @Transactional(readOnly = true)
-    public Page<Document> getAllAllowedDocuments(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        if (securityService.isAdmin()) {
-            return documentRepository.findAll(pageable);
-        } else {
-            return documentRepository.findBySpecialFalse(pageable);
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public Page<Document> getDocumentsForUser(UUID userId, int page, int size) {
-        if  (securityService.isAdmin()) {
-            return documentRepository.findByCreatedBy(userId, PageRequest.of(page, size));
-        }
-        return documentRepository.findByCreatedByAndSpecialFalse(userId, PageRequest.of(page, size));
-    }
-
-    @Transactional(readOnly = true)
-    public Document getDocumentByID(UUID id) {
-        Document doc = documentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
-
-        if (doc.isSpecial() && !securityService.isAdmin()) {
-            throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
-        }
-        return doc;
-    }
-
-    @Transactional(readOnly = true)
-    public List<Document> getExpiringDocumentsReadOnly () {
-        return documentRepository.findByExpiryDateLessThanEqual( LocalDate.now().plusDays(21));
-    }
-
-    @Transactional(readOnly = true)
-    public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return documentRepository.searchDocumentsFiltered(title, category, start, end, securityService.isAdmin(), pageable);
-    }
-
+    /* this "save" method allows expired documents to be uploaded without throwing, unlike "renew"...
+       that's because I want my colleagues to be able to store anything, given the fact that we need
+       to keep a copy of every doc that is less than 10 years old in case local authorities need to see them */
     @Transactional
     public Document saveDocument(MultipartFile file, String title, String category, LocalDate expiryDate, boolean isSpecial, String content) {
 
@@ -139,6 +101,46 @@ public class DocumentService {
         Document renewed = documentRepository.save(existingDoc);
         auditService.logAudit(renewed.getId(), renewed.getTitle(), AuditAction.RENEW);
         return renewed;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Document> getAllAllowedDocuments(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        if (securityService.isAdmin()) {
+            return documentRepository.findAll(pageable);
+        } else {
+            return documentRepository.findBySpecialFalse(pageable);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Document> getDocumentsForUser(UUID userId, int page, int size) {
+        if  (securityService.isAdmin()) {
+            return documentRepository.findByCreatedBy(userId, PageRequest.of(page, size));
+        }
+        return documentRepository.findByCreatedByAndSpecialFalse(userId, PageRequest.of(page, size));
+    }
+
+    @Transactional(readOnly = true)
+    public Document getDocumentByID(UUID id) {
+        Document doc = documentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Il documento con ID " + id + " non esiste."));
+
+        if (doc.isSpecial() && !securityService.isAdmin()) {
+            throw new AccessDeniedException("Non hai i permessi per visualizzare questo documento.");
+        }
+        return doc;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Document> getExpiringDocumentsReadOnly () {
+        return documentRepository.findByExpiryDateLessThanEqual( LocalDate.now().plusDays(21));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Document> searchAllowedDocuments(String title, String category, LocalDate start, LocalDate end, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return documentRepository.searchDocumentsFiltered(title, category, start, end, securityService.isAdmin(), pageable);
     }
 
     @Transactional(readOnly = true)
