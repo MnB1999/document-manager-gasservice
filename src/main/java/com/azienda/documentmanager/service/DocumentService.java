@@ -59,7 +59,7 @@ public class DocumentService {
 
     @Transactional(readOnly = true)
     public List<Document> getExpiringDocumentsReadOnly () {
-        return documentRepository.findByExpiryDateBetween(LocalDate.now(), LocalDate.now().plusDays(21));
+        return documentRepository.findByExpiryDateLessThanEqual( LocalDate.now().plusDays(21));
     }
 
     @Transactional(readOnly = true)

@@ -15,13 +15,13 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
+    // Spring data builds the derived query based on its name
     // Non-pageable like before used to notify so I need the whole list of documents
-    List<Document> findByExpiryDateBetween(LocalDate start, LocalDate end);
+    List<Document> findByExpiryDateLessThanEqual(LocalDate treshold);
 
     // Pageable variants used by the UI endpoints
     Page<Document> findByCreatedBy(UUID userId, Pageable pageable);
     Page<Document> findByCreatedByAndSpecialFalse(UUID userId, Pageable pageable);
-    Page<Document> findByExpiryDateBefore(LocalDate date, Pageable pageable);
     Page<Document> findBySpecialFalse(Pageable pageable);
 
     @Query("SELECT d FROM Document d WHERE " +

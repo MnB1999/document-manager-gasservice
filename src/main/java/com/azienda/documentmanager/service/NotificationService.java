@@ -22,7 +22,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<Document> getDocumentsToNotify() {
-        List<Document> expiringDocs = documentRepository.findByExpiryDateBetween(LocalDate.now(), LocalDate.now().plusDays(21));
+        List<Document> expiringDocs = documentRepository.findByExpiryDateLessThanEqual(LocalDate.now().plusDays(21));
         List<Document> toNotify = new ArrayList<>();
 
         for (Document doc : expiringDocs) {
