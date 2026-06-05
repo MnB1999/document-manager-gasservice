@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -105,12 +106,14 @@ public class DocumentController {
         return ResponseEntity.ok(results);
     }
 
-    @GetMapping("/{id}/download")
+    @PostMapping("/{id}/download")
     @Operation(summary = "Genera un URL firmato per scaricare il file")
     public ResponseEntity<Map<String, String>> getDownloadUrl(@PathVariable UUID id) {
         Document doc = documentService.getDocumentByID(id);
         String signedUrl = storageService.generateSignedUrl(doc.getFileUrl());
-        return ResponseEntity.ok(Map.of("url", signedUrl));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(Map.of("url", signedUrl));
     }
 
     @PutMapping("/renew/{id}")
