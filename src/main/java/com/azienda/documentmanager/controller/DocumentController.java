@@ -5,6 +5,7 @@ import com.azienda.documentmanager.model.DocumentVersion;
 import com.azienda.documentmanager.service.DocumentService;
 import com.azienda.documentmanager.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,11 +29,17 @@ public class DocumentController {
     private final StorageService storageService;
 
     @PostMapping("/upload")
-    @Operation(summary = "Carica un documento o crea un promemoria testuale")
+    @Operation(summary = "Carica un documento o crea un promemoria testuale",
+               description = "isSpecial marca il documento come riservato: solo gli ADMIN possono " +
+                             "impostarlo a true e solo gli ADMIN potranno poi vederlo. Un utente " +
+                             "normale che tenta isSpecial=true riceve 403."
+            )
     public ResponseEntity<Document> upload(@RequestParam(value = "file", required = false) MultipartFile file, // Sometimes we need to add simple textual reminders, not complete files
                                            @RequestParam("title") String title,
                                            @RequestParam("category") String category,
                                            @RequestParam("expiryDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate expiryDate,
+
+                                           @Parameter(description = "true = riservato, visibile solo agli ADMIN. Solo un ADMIN può impostarlo.")
                                            @RequestParam("isSpecial") boolean isSpecial,
                                            @RequestParam(value = "content", required = false) String content) {
 
