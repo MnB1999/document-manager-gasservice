@@ -26,17 +26,17 @@ public class JwtDecoderConfig {
                 .jwsAlgorithm(SignatureAlgorithm.ES256)
                 .build();
 
-        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuerUri);
-
-        OAuth2TokenValidator<Jwt> audienceValidator = token -> {
-            if (token.getAudience().contains("authenticated")) {
-                return OAuth2TokenValidatorResult.success();
-            }
-            return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Audience errata", null));
-        };
-
-        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator));
+        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(issuerUri), audienceValidator));
 
         return jwtDecoder;
     }
+
+    private OAuth2TokenValidator<Jwt> audienceValidator = token -> {
+
+        if (token.getAudience().contains("authenticated")) {
+            return OAuth2TokenValidatorResult.success();
+        }
+
+        return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Audience errata", null));
+    };
 }
