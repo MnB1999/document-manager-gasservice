@@ -62,7 +62,7 @@ public class StorageService{
 
         Map<String, String> response;
         try {
-            Map<String, Object> body = Map.of("expiresIn", 3600); // 1 ora
+            Map<String, Object> body = Map.of("expiresIn", 3600); // 1 hour
             response = restClient.post()
                     .uri(signUrl)
                     .header("Authorization", "Bearer " + supabaseKey)

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -22,41 +22,45 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<Document> getDocumentsToNotify() {
-        List<Document> expiringDocs = documentRepository.findByExpiryDateLessThanEqual(LocalDate.now().plusDays(21));
-        List<Document> toNotify = new ArrayList<>();
+        return documentRepository.findByExpiryDateLessThanEqual(LocalDate.now().plusDays(21))
+                  .stream()
+                  .filter(this::shouldNotify)
+                  .toList();
+    }
 
-        for (Document doc : expiringDocs) {
-            if (!doc.isNotified()) {
-                toNotify.add(doc);
-            } else if (doc.getLastNotifiedAt() != null) {
-                long days = java.time.temporal.ChronoUnit.DAYS.between(doc.getLastNotifiedAt(), LocalDate.now());
-                if (days >= 11) {
-                    toNotify.add(doc);
-                }
-            }
+    private boolean shouldNotify(Document doc) {
+        if (!doc.isNotified()) {
+            return true;
         }
-        return toNotify;
+        if (doc.getLastNotifiedAt() == null) {
+            return false;
+        }
+        long daysSinceLastNotification = ChronoUnit.DAYS.between(doc.getLastNotifiedAt(), LocalDate.now());
+        return daysSinceLastNotification >= 11;
     }
 
     @Async
     @Transactional
-    public void notifyAndUpdateState(String recipientEmail, List<Document> toNotify) {
+    public void sendNotification(String recipientEmail, List<Document> toNotify) {
         if (toNotify.isEmpty()) return;
 
         try {
             // 1. Attempt network call first
             emailService.sendDeadlineAlert(recipientEmail, toNotify);
-
             // 2. Only if the email succeeds, mutate the DB
-            toNotify.forEach(doc -> {
-                doc.setNotified(true);
-                doc.setLastNotifiedAt(LocalDate.now());
-            });
-            documentRepository.saveAll(toNotify);
-
+            markAsNotified (toNotify);
             log.info("Notifica inviata con successo per {} documenti", toNotify.size());
         } catch (Exception e) {
             log.error("Errore invio email di scadenza. Database non aggiornato, nuovo tentativo previsto al prossimo ciclo.", e);
         }
+    }
+
+    private void markAsNotified(List<Document> documents) {
+        LocalDate today = LocalDate.now();
+        documents.forEach(doc -> {
+            doc.setNotified(true);
+            doc.setLastNotifiedAt(today);
+        });
+        documentRepository.saveAll(documents);
     }
 }
