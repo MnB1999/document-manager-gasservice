@@ -12,48 +12,63 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmailService {
 
+    private static final String SUBJECT = "AVVISO DI SCADENZA - Documenti Gas Service";
+    private static final String GREETING = "Gentile ufficio,\n\n";
+    private static final String FILES_HEADER = "I seguenti documenti o certificazioni sono in scadenza entro i prossimi 21 giorni o sono già scaduti:\n\n";
+    private static final String REMINDERS_HEADER = "I seguenti promemoria richiedono attenzione:\n\n";
+    private static final String CLOSING = "Si prega di provvedere al rinnovo dove necessario.\nCordiali saluti,\nSistema Automatico DocumentManager";
+
     private final JavaMailSender mailSender;
 
     public void sendDeadlineAlert(String to, List<Document> expiringDocuments) {
-        List<Document> expiringFiles = expiringDocuments.stream()
-                .filter(d -> d.getType() == DocumentType.FILE)
-                .toList();
-
-        List<Document> expiringReminders = expiringDocuments.stream()
-                .filter(d -> d.getType() == DocumentType.TEXT_REMINDER)
-                .toList();
-
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(to);
-        message.setSubject("AVVISO DI SCADENZA - Documenti Gas Service");
+        message.setSubject(SUBJECT);
+        message.setText(buildMessageBody(expiringDocuments));
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("Gentile ufficio,\n\n");
-
-        if (!expiringFiles.isEmpty()) {
-            sb.append("I seguenti documenti o certificazioni sono in scadenza entro i prossimi 21 giorni o sono già scaduti:\n\n");
-            for (Document doc : expiringFiles) {
-                sb.append("- ").append(doc.getTitle())
-                        .append(" (Scadenza: ").append(doc.getExpiryDate()).append(")\n");
-            }
-            sb.append("\n");
-        }
-
-        if (!expiringReminders.isEmpty()) {
-            sb.append("I seguenti promemoria richiedono attenzione:\n\n");
-            for (Document doc : expiringReminders) {
-                sb.append("- ").append(doc.getTitle())
-                        .append(" (Scadenza: ").append(doc.getExpiryDate()).append(")\n");
-                if (doc.getContent() != null && !doc.getContent().isBlank()) {
-                    sb.append("  Nota: ").append(doc.getContent()).append("\n");
-                }
-            }
-            sb.append("\n");
-        }
-
-        sb.append("Si prega di provvedere al rinnovo dove necessario.\nCordiali saluti,\nSistema Automatico DocumentManager");
-
-        message.setText(sb.toString());
         mailSender.send(message);
+    }
+
+    private String buildMessageBody(List<Document> expiringDocuments) {
+        List<Document> files = filterByType(expiringDocuments, DocumentType.FILE);
+        List<Document> reminders = filterByType(expiringDocuments, DocumentType.TEXT_REMINDER);
+
+        StringBuilder body = new StringBuilder(GREETING);
+        appendFilesSection(body, files);
+        appendRemindersSection(body, reminders);
+        body.append(CLOSING);
+
+        return body.toString();
+    }
+
+    private List<Document> filterByType(List<Document> documents, DocumentType type) {
+        return documents.stream()
+                .filter(d -> d.getType() == type)
+                .toList();
+    }
+
+    private void appendFilesSection(StringBuilder body, List<Document> files) {
+        if (files.isEmpty()) return;
+
+        body.append(FILES_HEADER);
+        files.forEach(doc -> body.append("- ")
+                .append(doc.getTitle())
+                .append(" (Scadenza: ").append(doc.getExpiryDate()).append(")\n"));
+        body.append("\n");
+    }
+
+    private void appendRemindersSection(StringBuilder body, List<Document> reminders) {
+        if (reminders.isEmpty()) return;
+
+        body.append(REMINDERS_HEADER);
+        reminders.forEach(doc -> {
+            body.append("- ")
+                    .append(doc.getTitle())
+                    .append(" (Scadenza: ").append(doc.getExpiryDate()).append(")\n");
+            if (doc.getContent() != null && !doc.getContent().isBlank()) {
+                body.append("  Nota: ").append(doc.getContent()).append("\n");
+            }
+        });
+        body.append("\n");
     }
 }
