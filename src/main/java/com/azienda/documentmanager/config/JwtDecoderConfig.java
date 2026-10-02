@@ -21,6 +21,15 @@ public class JwtDecoderConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
 
+    private OAuth2TokenValidator<Jwt> audienceValidator = token -> {
+
+        if (token.getAudience().contains("authenticated")) {
+            return OAuth2TokenValidatorResult.success();
+        }
+
+        return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Audience errata", null));
+    };
+
     @Bean
     public JwtDecoder jwtDecoder() {
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
@@ -32,12 +41,4 @@ public class JwtDecoderConfig {
         return jwtDecoder;
     }
 
-    private OAuth2TokenValidator<Jwt> audienceValidator = token -> {
-
-        if (token.getAudience().contains("authenticated")) {
-            return OAuth2TokenValidatorResult.success();
-        }
-
-        return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Audience errata", null));
-    };
 }

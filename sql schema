@@ -1,0 +1,56 @@
+CREATE TABLE public.documents (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title character varying NOT NULL,
+  category character varying,
+  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['FILE'::character varying, 'TEXT_REMINDER'::character varying]::text[])),
+  content text CHECK (content IS NULL OR length(content) <= 20000),
+  file_url text,
+  expiry_date date,
+  created_by uuid,
+  is_notified boolean NOT NULL DEFAULT false,
+  last_notified_at date,
+  is_special boolean NOT NULL DEFAULT false,
+  deleted boolean NOT NULL DEFAULT false,
+  deleted_at date,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  version bigint NOT NULL DEFAULT 0,
+  frequency_months smallint,
+  CONSTRAINT documents_pkey PRIMARY KEY (id)
+  CONSTRAINT documents_frequency_months_check CHECK (frequency_months IS NULL
+    OR (frequency_months > 0 AND type::text = 'TEXT_REMINDER'::text AND expiry_date IS NOT NULL))
+);
+CREATE TABLE public.document_versions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  document_id uuid NOT NULL,
+  file_url text,
+  content text,
+  expiry_date date,
+  archived_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_versions_pkey PRIMARY KEY (id),
+  CONSTRAINT document_versions_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id)
+);
+CREATE TABLE public.document_audit_log (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  document_id uuid NOT NULL,
+  document_title character varying,
+  user_id uuid,
+  action character varying NOT NULL CHECK (action::text = ANY (ARRAY['UPLOAD'::character varying, 'RENEW'::character varying, 'DELETE'::character varying, 'PHYSICAL_DELETE'::character varying]::text[])),
+  performed_at timestamp with time zone NOT NULL DEFAULT now(),
+  user_email text,
+  CONSTRAINT document_audit_log_pkey PRIMARY KEY (id),
+  CONSTRAINT document_audit_log_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id)
+);
+CREATE TABLE public.shedlock (
+  name character varying NOT NULL,
+  lock_until timestamp without time zone NOT NULL,
+  locked_at timestamp without time zone NOT NULL,
+  locked_by character varying NOT NULL,
+  CONSTRAINT shedlock_pkey PRIMARY KEY (name)
+);
+
+
+ALTER TABLE public.documents          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.document_versions  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.document_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shedlock           ENABLE ROW LEVEL SECURITY;

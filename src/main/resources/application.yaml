@@ -1,15 +1,21 @@
 spring:
+  profiles:
+    active: dev
+  config:
+    import: optional:file:.env[.properties]
   datasource:
-
     url: ${DB_URL}
     username: postgres
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  jpa:
+    open-in-view: false
+
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 12MB
+      max-request-size: 12MB
 
   security:
     oauth2:
@@ -17,7 +23,6 @@ spring:
         jwt:
           issuer-uri: ${ISSUER_URI}
           jwk-set-uri: ${JWK_SET_URI}
-
 
   mail:
     host: smtp.gmail.com
@@ -30,10 +35,16 @@ spring:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 5000
+          timeout: 10000
+          writetimeout: 10000
 
 app:
   notifications:
-    recipient-email: ${NOTIFICATION_RECIPIENT}
+    standard-recipients: ${NOTIFICATION_RECIPIENT_STANDARD}
+    special-recipients: ${NOTIFICATION_RECIPIENT_SPECIAL}
+    days-before-expiry: 28
+    renotify-after-days: 5
   storage:
     bucket: aziendale_docs
   cors:

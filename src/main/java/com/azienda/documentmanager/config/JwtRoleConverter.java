@@ -12,10 +12,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationToken> {
-    // This looks where supabase "stores" the user's role and makes it intelligible for springboot
+
+    private static final Set<String> KNOWN_ROLES = Set.of("ADMIN", "USER");
+
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
@@ -23,10 +26,12 @@ public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationTo
         Map<String, Object> appMetadata = jwt.getClaim("app_metadata");
 
         if (appMetadata != null && appMetadata.get("role") instanceof String role && !role.isBlank()) {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase(Locale.ROOT)));
-        } else {
-            authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+            String normalized = role.toUpperCase(Locale.ROOT);
+            if (KNOWN_ROLES.contains(normalized)) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + normalized));
+            }
         }
+        // DENY BY DEFAULT: 403 (by security config) on accounts with no role assigned
 
         return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
     }

@@ -11,8 +11,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import java.util.List;
 
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -32,16 +32,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Only active on dev profile (spring doc disabled in production)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/audit/**").hasRole("ADMIN")
-                        // The service will do the filtering for these 2 requests
-                        .requestMatchers(HttpMethod.POST, "/api/documents/upload").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/documents/renew/**").authenticated()
 
+                        // Document level rules live in document access policy
+                        .requestMatchers("/api/audit/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/documents/**").hasRole("ADMIN")
-                        .requestMatchers("/api/documents/search", "/api/documents/all").authenticated()
-                        .requestMatchers("/api/documents").authenticated()
-                        .anyRequest().authenticated()
+
+                        .anyRequest().hasAnyRole("ADMIN", "USER")
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtRoleConverter))
@@ -58,5 +56,4 @@ public class SecurityConfig {
         config.setAllowCredentials(true);
         return request -> config;
     }
-
 }
