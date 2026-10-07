@@ -16,7 +16,7 @@ CREATE TABLE public.documents (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   version bigint NOT NULL DEFAULT 0,
   frequency_months smallint,
-  CONSTRAINT documents_pkey PRIMARY KEY (id)
+  CONSTRAINT documents_pkey PRIMARY KEY (id),
   CONSTRAINT documents_frequency_months_check CHECK (frequency_months IS NULL
     OR (frequency_months > 0 AND type::text = 'TEXT_REMINDER'::text AND expiry_date IS NOT NULL))
 );
