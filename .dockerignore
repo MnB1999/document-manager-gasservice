@@ -1,0 +1,6 @@
+.git
+.idea
+.env
+target
+src/main/frontend/node_modules
+src/main/frontend/dist
