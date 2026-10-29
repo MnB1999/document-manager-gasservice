@@ -7,12 +7,13 @@ export const CONFIG = {
 
 
   CATEGORIES: [
-    "Contratti",
-    "Certificazioni",
-    "Mezzi",
+    "Assicurazioni",
+    "Certificazioni aziendali",
+    "Contratti clienti",
+    "Contratti fornitori",
     "Dipendenti",
-    "Fornitori",
-    "Fiscale",
+    "Impianti clienti",
+    "Mezzi",
     "Varie"
   ],
 
